@@ -1,0 +1,51 @@
+import { createHash, timingSafeEqual } from "crypto";
+import { cookies } from "next/headers";
+
+const ADMIN_COOKIE = "studio_admin_session";
+const DEFAULT_PASSWORD = "change-me-please";
+
+function getAdminPassword() {
+  return process.env.ADMIN_PASSWORD || DEFAULT_PASSWORD;
+}
+
+function hashValue(value: string) {
+  return createHash("sha256").update(value).digest("hex");
+}
+
+export async function isAuthenticated() {
+  const cookieStore = await cookies();
+  const sessionValue = cookieStore.get(ADMIN_COOKIE)?.value;
+
+  if (!sessionValue) {
+    return false;
+  }
+
+  const expected = Buffer.from(hashValue(getAdminPassword()));
+  const actual = Buffer.from(sessionValue);
+
+  return actual.length === expected.length && timingSafeEqual(actual, expected);
+}
+
+export async function createAdminSession() {
+  const cookieStore = await cookies();
+  cookieStore.set(ADMIN_COOKIE, hashValue(getAdminPassword()), {
+    httpOnly: true,
+    sameSite: "lax",
+    secure: process.env.NODE_ENV === "production",
+    path: "/",
+    maxAge: 60 * 60 * 8,
+  });
+}
+
+export async function clearAdminSession() {
+  const cookieStore = await cookies();
+  cookieStore.delete(ADMIN_COOKIE);
+}
+
+export function verifyPassword(input: string) {
+  return input === getAdminPassword();
+}
+
+export function getDefaultPasswordNotice() {
+  return process.env.ADMIN_PASSWORD ? null : DEFAULT_PASSWORD;
+}
