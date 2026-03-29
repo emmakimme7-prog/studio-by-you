@@ -2,6 +2,7 @@
 
 import { useActionState, useEffect, useState } from "react";
 import { submitContactInquiryAction } from "@/app/contact/actions";
+import { compressClientImageFile } from "@/lib/client-image";
 
 type ContactFormProps = {
   email: string;
@@ -14,7 +15,7 @@ type ContactFormProps = {
   privacyPolicy: string;
 };
 
-const serviceTypes = ["홈페이지", "관리자 페이지", "나만의 기능 개발", "앱서비스"] as const;
+const serviceTypes = ["홈페이지", "관리자 페이지", "나만의 기능 개발", "앱서비스", "유료 서비스 문의"] as const;
 
 export function ContactForm({ email, headline, plans, privacyPolicy }: ContactFormProps) {
   const [state, formAction, pending] = useActionState(submitContactInquiryAction, undefined);
@@ -25,6 +26,9 @@ export function ContactForm({ email, headline, plans, privacyPolicy }: ContactFo
   const [name, setName] = useState("");
   const [phone, setPhone] = useState("");
   const [isPrivacyOpen, setIsPrivacyOpen] = useState(false);
+  const [attachments, setAttachments] = useState<string[]>([]);
+  const [isUploadingImages, setIsUploadingImages] = useState(false);
+  const [activeAttachment, setActiveAttachment] = useState<string | null>(null);
 
   useEffect(() => {
     if (!state?.success) {
@@ -35,6 +39,7 @@ export function ContactForm({ email, headline, plans, privacyPolicy }: ContactFo
     setMessage("");
     setName("");
     setPhone("");
+    setAttachments([]);
   }, [state?.success]);
 
   function toggleType(type: string) {
@@ -46,9 +51,52 @@ export function ContactForm({ email, headline, plans, privacyPolicy }: ContactFo
   const isSubmitReady =
     Boolean(activePlan) &&
     selectedTypes.length > 0 &&
-    message.trim().length > 0 &&
+    (message.trim().length > 0 || attachments.length > 0) &&
     name.trim().length > 0 &&
-    phone.trim().length > 0;
+    phone.trim().length > 0 &&
+    !isUploadingImages;
+
+  async function handleAttachmentChange(files: FileList | null) {
+    if (!files?.length) {
+      return;
+    }
+
+    const nextFiles = Array.from(files).filter((file) => file.type.startsWith("image/"));
+    const availableCount = Math.max(0, 10 - attachments.length);
+
+    if (!availableCount) {
+      alert("이미지는 최대 10장까지 첨부할 수 있습니다.");
+      return;
+    }
+
+    try {
+      setIsUploadingImages(true);
+      const uploadedImages = await Promise.all(
+        nextFiles.slice(0, availableCount).map(async (file) => {
+          const compressedFile = await compressClientImageFile(file, { maxWidth: 1800, quality: 0.88 });
+          const formData = new FormData();
+          formData.append("file", compressedFile);
+          const response = await fetch("/api/contact-upload", {
+            method: "POST",
+            body: formData,
+          });
+
+          if (!response.ok) {
+            const payload = (await response.json().catch(() => ({}))) as { error?: string };
+            throw new Error(payload.error || "이미지 업로드에 실패했습니다.");
+          }
+
+          const payload = (await response.json()) as { url: string };
+          return payload.url;
+        }),
+      );
+      setAttachments((current) => [...current, ...uploadedImages].slice(0, 10));
+    } catch (error) {
+      alert(error instanceof Error ? error.message : "이미지 첨부 중 문제가 발생했습니다.");
+    } finally {
+      setIsUploadingImages(false);
+    }
+  }
 
   return (
     <>
@@ -63,6 +111,9 @@ export function ContactForm({ email, headline, plans, privacyPolicy }: ContactFo
           <input name="plan" type="hidden" value={activePlan} />
           {selectedTypes.map((type) => (
             <input key={type} name="serviceTypes" type="hidden" value={type} />
+          ))}
+          {attachments.map((attachment, index) => (
+            <input key={`${attachment.slice(0, 32)}-${index}`} name="attachments" type="hidden" value={attachment} />
           ))}
 
           <div className="contact-form-row">
@@ -113,14 +164,54 @@ export function ContactForm({ email, headline, plans, privacyPolicy }: ContactFo
 
           <div className="contact-form-row">
             <strong>문의 내용</strong>
-            <textarea
-              className="contact-textarea"
-              name="message"
-              onChange={(event) => setMessage(event.target.value)}
-              placeholder="희망 서비스 / 기간 / 요구사항을 작성해 주세요."
-              rows={10}
-              value={message}
-            />
+            <div className="contact-form-attachment-stack">
+              <textarea
+                className="contact-textarea"
+                name="message"
+                onChange={(event) => setMessage(event.target.value)}
+                placeholder="희망 서비스 / 기간 / 요구사항을 작성해 주세요."
+                rows={10}
+                value={message}
+              />
+              <div className="contact-attachment-row">
+                <label className="contact-attachment-button">
+                  {isUploadingImages ? "이미지 처리 중..." : "이미지 첨부"}
+                  <input
+                    accept="image/*"
+                    multiple
+                    onChange={(event) => {
+                      void handleAttachmentChange(event.target.files);
+                      event.currentTarget.value = "";
+                    }}
+                    type="file"
+                  />
+                </label>
+                <span className="contact-attachment-note">최대 10장까지 첨부할 수 있어요.</span>
+              </div>
+              {attachments.length ? (
+                <div className="contact-attachment-grid">
+                  {attachments.map((attachment, index) => (
+                    <div className="contact-attachment-card" key={`${attachment.slice(0, 32)}-${index}`}>
+                      <button
+                        className="contact-attachment-preview button-reset"
+                        onClick={() => setActiveAttachment(attachment)}
+                        type="button"
+                      >
+                        <img alt={`첨부 이미지 ${index + 1}`} src={attachment} />
+                      </button>
+                      <button
+                        aria-label={`첨부 이미지 ${index + 1} 삭제`}
+                        className="contact-attachment-remove button-reset"
+                        onClick={() => setAttachments((current) => current.filter((_, currentIndex) => currentIndex !== index))}
+                        type="button"
+                      >
+                        ×
+                      </button>
+                    </div>
+                  ))}
+                </div>
+              ) : null}
+            </div>
           </div>
 
           <div className="contact-form-row">
@@ -154,10 +245,10 @@ export function ContactForm({ email, headline, plans, privacyPolicy }: ContactFo
             </p>
             <button
               className={`contact-submit-button button-reset${isSubmitReady ? " is-ready" : ""}`}
-              disabled={pending}
+              disabled={pending || isUploadingImages}
               type="submit"
             >
-              {pending ? "등록 중..." : "동의 후 문의 등록"}
+              {pending ? "등록 중..." : isUploadingImages ? "이미지 처리 중..." : "동의 후 문의 등록"}
             </button>
             {state?.success ? <p className="success-text">{state.success}</p> : null}
             {state?.error ? <p className="form-error">{state.error}</p> : null}
@@ -192,6 +283,27 @@ export function ContactForm({ email, headline, plans, privacyPolicy }: ContactFo
                 <p key={`${line}-${index}`}>{line}</p>
               ))}
             </div>
+          </div>
+        </div>
+      ) : null}
+
+      {activeAttachment ? (
+        <div className="portfolio-modal-backdrop" onClick={() => setActiveAttachment(null)} role="presentation">
+          <div
+            aria-modal="true"
+            className="contact-image-lightbox"
+            onClick={(event) => event.stopPropagation()}
+            role="dialog"
+          >
+            <button
+              aria-label="첨부 이미지 닫기"
+              className="portfolio-modal-close button-reset contact-image-lightbox-close"
+              onClick={() => setActiveAttachment(null)}
+              type="button"
+            >
+              <span aria-hidden="true">×</span>
+            </button>
+            <img alt="첨부 이미지 크게 보기" src={activeAttachment} />
           </div>
         </div>
       ) : null}

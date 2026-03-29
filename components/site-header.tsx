@@ -35,10 +35,10 @@ export function SiteHeader({
       { href: `${basePath}/services` || "/services", iconSrc: "/home-assets/setting.svg", label: "서비스" },
       { href: `${basePath}/pricing` || "/pricing", iconSrc: "/home-assets/pay.svg", label: "요금" },
       { href: `${basePath}/faq` || "/faq", iconSrc: "/home-assets/question.svg", label: "자주 묻는 질문", shortLabel: "질문" },
-    ].filter((link) => !(basePath === "/studiobyyou" && link.label === "요금"));
+    ].filter((link) => !(basePath === "/studiobyyou" && (link.label === "요금" || link.label === "서비스")));
   const resolvedHomeHref = homeHref ?? (basePath || "/");
   const resolvedContactHref = contactHref ?? (`${basePath}/contact` || "/contact");
-  const resolvedMobileLogoSrc = mobileLogoSrc ?? logoSrc;
+  const resolvedMobileLogoSrc = mobileLogoSrc ?? "/home-assets/symbol.png";
   const isDynamicLogo = logoSrc.startsWith("data:");
 
   return (
