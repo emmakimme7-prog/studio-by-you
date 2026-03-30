@@ -429,6 +429,7 @@ export function PortfolioDetailEditor({ projectId, initialHtml, onChange }: Port
     setActiveCell(null);
   };
 
+
   const addRow = (cell: Cell) => {
     const row: Row = { id: uid(), cells: [cell] };
     const next = [...rows, row];

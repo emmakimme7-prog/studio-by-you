@@ -3918,13 +3918,21 @@ td {
     font-size: 0.92rem;
   }
 
-  .project-card-grid,
-  .process-card-grid {
+  .project-card-grid{
     grid-auto-flow: column;
     grid-auto-columns: minmax(280px, 72vw);
     grid-template-columns: unset;
     overflow-x: auto;
     overflow-y: visible;
+    padding: 20px 4px 30px;
+    scroll-snap-type: x mandatory;
+    -webkit-overflow-scrolling: touch;
+  }
+
+  .process-card-grid {
+    grid-auto-flow: column;
+    grid-auto-columns: minmax(280px, 72vw);
+    grid-template-columns: unset;
     padding: 20px 4px 30px;
     scroll-snap-type: x mandatory;
     -webkit-overflow-scrolling: touch;
@@ -4245,7 +4253,7 @@ td {
   }
 
   .white-panel {
-    padding: 44px 20px 42px;
+    padding: 44px 10px 42px;
     border-radius: 28px;
   }
 
@@ -4262,14 +4270,21 @@ td {
     padding-bottom: 22px;
   }
 
-  .project-card-grid,
-  .process-card-grid {
+ .project-card-grid{
     grid-auto-columns: minmax(260px, 82vw);
     gap: 18px;
     padding: 14px 0 26px;
     margin-inline: -20px;
     width: calc(100% + 40px);
     padding-inline: 20px;
+  }
+
+  .process-card-grid {
+    grid-auto-columns: minmax(260px, 82vw);
+    gap: 18px;
+    padding: 14px 0 26px;
+    width: calc(100% + 40px);
+    padding-inline: 10px;
   }
 
   .project-shot-card h3,
