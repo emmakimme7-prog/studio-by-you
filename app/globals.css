@@ -1150,13 +1150,13 @@ main.subpage-shell.portfolio-detail-page {
   place-items: center;
   width: 30px;
   pointer-events: none;
+  margin-top: 20px !important;
 }
 
 .faq-search-icon img {
   display: block;
   width: 24px;
   height: 24px;
-  transform: translateY(6px);
 }
 
 .faq-layout {
@@ -1256,7 +1256,7 @@ main.subpage-shell.portfolio-detail-page {
 
 .faq-group {
   width: 100%;
-  padding: 28px;
+  padding: 30px 20px;
   border-radius: 28px;
   background: #ffffff;
   border: 1px solid var(--line);
