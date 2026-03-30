@@ -1,5 +1,3 @@
-export const dynamic = "force-dynamic";
-
 import { SiteHeader } from "@/components/site-header";
 import { PortfolioList } from "@/app/portfolio/portfolio-list";
 import { readSiteContent } from "@/lib/site-content";

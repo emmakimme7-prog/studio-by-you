@@ -204,7 +204,6 @@ main {
 
 .white-panel {
   position: relative;
-  margin-top: 24px;
   padding: 128px 0 128px;
   border-radius: 42px;
   background: transparent;
@@ -627,6 +626,8 @@ main {
 }
 
 .portfolio-detail-page {
+  position: relative;
+  isolation: isolate;
   width: 100%;
   max-width: 100%;
   min-height: 100vh;
@@ -636,11 +637,20 @@ main {
   transition: background-color 180ms ease, color 180ms ease;
 }
 
+.portfolio-detail-page::before {
+  content: "";
+  position: fixed;
+  inset: 0;
+  background: inherit;
+  z-index: -1;
+  pointer-events: none;
+}
+
 main.subpage-shell.portfolio-detail-page {
-  width: 100vw;
-  max-width: 100vw;
-  margin-left: 0;
-  margin-right: 0;
+  width: 100%;
+  max-width: 100%;
+  margin-left: auto;
+  margin-right: auto;
 }
 
 .portfolio-detail-page .subpage-hero {
@@ -649,9 +659,9 @@ main.subpage-shell.portfolio-detail-page {
 }
 
 .portfolio-detail-page .portfolio-detail-editor {
-  width: 100%;
-  max-width: 100%;
-  margin-inline: 0;
+  width: min(1480px, calc(100% - 48px));
+  max-width: min(1480px, calc(100% - 48px));
+  margin-inline: auto;
 }
 
 .portfolio-detail-page .subpage-hero {
@@ -4030,6 +4040,56 @@ td {
     width: min(1180px, calc(100% - 20px));
   }
 
+  main.subpage-shell.portfolio-detail-page {
+    width: 100%;
+    max-width: 100%;
+    margin: 0;
+  }
+
+  .portfolio-detail-page .subpage-hero,
+  .portfolio-detail-page .portfolio-detail-editor {
+    box-sizing: border-box;
+    width: 100%;
+    max-width: 100%;
+    padding-inline: 0;
+    overflow-x: clip;
+  }
+
+  .portfolio-detail-page .subpage-hero > .panel-heading-kicker,
+  .portfolio-detail-page .subpage-hero > h1,
+  .portfolio-detail-page .subpage-hero > p,
+  .portfolio-detail-html > h1,
+  .portfolio-detail-html > h2,
+  .portfolio-detail-html > h3,
+  .portfolio-detail-html > p,
+  .portfolio-detail-html > ul,
+  .portfolio-detail-html > ol,
+  .portfolio-detail-html > blockquote {
+    box-sizing: border-box;
+    width: 100%;
+    max-width: 100%;
+    margin-inline: 0;
+    padding-inline: 24px;
+  }
+
+  .portfolio-detail-html > div:not(:has(> img:only-child)):not(:has(> video:only-child)):not(:has(> figure:only-child)),
+  .portfolio-detail-html > section:not(:has(> img:only-child)):not(:has(> video:only-child)):not(:has(> figure:only-child)) {
+    box-sizing: border-box;
+    width: 100%;
+    max-width: 100%;
+    margin-inline: 0;
+    padding-inline: 24px;
+  }
+
+  .portfolio-detail-page .subpage-hero {
+    box-sizing: border-box;
+    width: 100%;
+    max-width: 100%;
+    padding-inline: 0;
+    padding-bottom: 80px;
+    overflow-x: clip;
+  }
+
   .landing-shell,
   .hero-band-inner,
   .subpage-shell {
@@ -4405,10 +4465,15 @@ td {
   .portfolio-detail-html > div:has(> video:only-child),
   .portfolio-detail-html > div:has(> img:only-child),
   .portfolio-detail-html > p:has(> figure:only-child),
-  .portfolio-detail-html > div:has(> figure:only-child) {
+  .portfolio-detail-html > div:has(> figure:only-child),
+  .portfolio-detail-html > section:has(> img:only-child),
+  .portfolio-detail-html > section:has(> video:only-child),
+  .portfolio-detail-html > section:has(> figure:only-child) {
+    box-sizing: border-box;
     width: 100%;
     max-width: 100%;
     margin-inline: 0;
+    padding-inline: 0;
   }
 
   .portfolio-detail-html figure.portfolio-editor-media,

@@ -1,5 +1,3 @@
-export const dynamic = "force-dynamic";
-
 import Image from "next/image";
 import { SiteHeader } from "@/components/site-header";
 import { readSiteContent } from "@/lib/site-content";

@@ -3,7 +3,7 @@ import { NextResponse } from "next/server";
 
 const assetPrefixes = ["/_next", "/api", "/home-assets", "/favicon", "/icon", "/images", "/yt-demo", "/vote-demo"];
 
-export function middleware(request: NextRequest) {
+export function proxy(request: NextRequest) {
   const host = request.headers.get("host") || "";
   const { pathname } = request.nextUrl;
 
