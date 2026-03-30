@@ -223,6 +223,7 @@ main {
   background: var(--surface);
   box-shadow: var(--shadow);
   z-index: 0;
+  margin-top: -27px;
 }
 
 .white-panel > * {
@@ -391,6 +392,8 @@ main {
 .process-heading p {
   max-width: 680px;
 }
+
+
 
 .process-card-grid {
   display: grid;
@@ -4101,7 +4104,7 @@ td {
   }
 
   .hero-band {
-    min-height: 560px;
+    min-height: 600px;
     display: flex;
     align-items: center;
   }
@@ -5756,5 +5759,53 @@ td {
     transform: none;
     animation: none;
     transition: none;
+  }
+}
+
+@media (max-width: 720px) {
+  .portfolio-detail-html .pbe-row {
+    display: block !important;
+    width: 100% !important;
+    max-width: 100% !important;
+    margin: 0 0 24px !important;
+  }
+
+  .portfolio-detail-html .pbe-cell {
+    display: block !important;
+    width: 100% !important;
+    max-width: 100% !important;
+    flex: none !important;
+  }
+
+  .portfolio-detail-html .pbe-cell + .pbe-cell {
+    margin-top: 20px;
+  }
+
+  .portfolio-detail-html .pbe-cell:not(:has(> figure)):not(:has(> img)):not(:has(> video)):not(:has(> .portfolio-editor-divider)) {
+    box-sizing: border-box;
+    padding-inline: 24px;
+  }
+
+  .portfolio-detail-html .pbe-cell > figure,
+  .portfolio-detail-html .pbe-cell > img,
+  .portfolio-detail-html .pbe-cell > video,
+  .portfolio-detail-html .pbe-cell > .portfolio-block-media,
+  .portfolio-detail-html .pbe-cell > p:has(> img:only-child),
+  .portfolio-detail-html .pbe-cell > p:has(> video:only-child),
+  .portfolio-detail-html .pbe-cell > div:has(> img:only-child),
+  .portfolio-detail-html .pbe-cell > div:has(> video:only-child) {
+    width: 100% !important;
+    max-width: 100% !important;
+    margin-left: 0 !important;
+    margin-right: 0 !important;
+    padding-inline: 0 !important;
+  }
+
+  .portfolio-detail-html .pbe-cell > figure img,
+  .portfolio-detail-html .pbe-cell > figure video,
+  .portfolio-detail-html .pbe-cell > .portfolio-block-media img,
+  .portfolio-detail-html .pbe-cell > .portfolio-block-media video {
+    width: 100% !important;
+    max-width: 100% !important;
   }
 }

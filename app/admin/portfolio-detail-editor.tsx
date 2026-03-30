@@ -118,7 +118,9 @@ function parseHtmlToState(html: string) {
         const fig = el.tagName === "FIGURE" ? el : el.querySelector("figure");
         const img = fig?.querySelector("img") ?? (el.tagName === "IMG" ? (el as HTMLImageElement) : null);
         const vid = fig?.querySelector("video") ?? (el.tagName === "VIDEO" ? (el as HTMLVideoElement) : null);
-        const divider = el.querySelector(".portfolio-editor-divider") ?? (el.classList.contains("portfolio-editor-divider") ? el : null);
+        const divider: HTMLElement | null =
+          (el.querySelector(".portfolio-editor-divider") as HTMLElement | null) ??
+          (el.classList.contains("portfolio-editor-divider") ? el : null);
         const widthRaw = parseFloat(el.style.flexBasis || el.style.maxWidth || "0");
         const width: CellWidth = ([25, 33, 50, 67, 75, 100].includes(widthRaw) ? widthRaw : "auto") as CellWidth;
 
@@ -321,6 +323,7 @@ export function PortfolioDetailEditor({ projectId, initialHtml, onChange }: Port
   const dragRowId = useRef<string | null>(null);
   const [dragOverRowId, setDragOverRowId] = useState<string | null>(null);
   const textRefs = useRef<Record<string, HTMLDivElement | null>>({});
+  const savedRange = useRef<Range | null>(null);
 
   useEffect(() => {
     if (prevProjectId.current !== projectId) {
@@ -408,14 +411,39 @@ export function PortfolioDetailEditor({ projectId, initialHtml, onChange }: Port
     textRefs.current[id] = el;
   }, []);
 
+  useEffect(() => {
+    const handleSelectionChange = () => {
+      if (!activeCell) return;
+      const editor = textRefs.current[activeCell.cellId];
+      const selection = window.getSelection();
+      if (!editor || !selection || selection.rangeCount === 0) return;
+      const range = selection.getRangeAt(0);
+      if (editor.contains(range.commonAncestorContainer)) {
+        savedRange.current = range.cloneRange();
+      }
+    };
+
+    document.addEventListener("selectionchange", handleSelectionChange);
+    return () => document.removeEventListener("selectionchange", handleSelectionChange);
+  }, [activeCell]);
+
   const activeCellData = activeCell
     ? rows.find((row) => row.id === activeCell.rowId)?.cells.find((cell) => cell.id === activeCell.cellId) ?? null
     : null;
+
+  const restoreSavedRange = () => {
+    if (!savedRange.current) return;
+    const selection = window.getSelection();
+    if (!selection) return;
+    selection.removeAllRanges();
+    selection.addRange(savedRange.current);
+  };
 
   const applyTextStyle = (stylePatch: Record<string, string>) => {
     if (!activeCellData || activeCellData.type !== "text" || !activeCell) return;
     const editor = textRefs.current[activeCell.cellId];
     if (!editor) return;
+    restoreSavedRange();
     wrapSelectionWithStyle(editor, stylePatch);
     updateCell(activeCell.rowId, activeCell.cellId, { html: editor.innerHTML });
   };
@@ -461,7 +489,6 @@ export function PortfolioDetailEditor({ projectId, initialHtml, onChange }: Port
 
         {activeCellData?.type === "text" && (
           <div className="portfolio-toolbar-group">
-            <button className="secondary-link button-reset" onMouseDown={(e) => { e.preventDefault(); document.execCommand("bold"); }} type="button"><b>B</b></button>
             <button className="secondary-link button-reset" onMouseDown={(e) => { e.preventDefault(); document.execCommand("italic"); }} type="button"><i>I</i></button>
             <button className="secondary-link button-reset" onMouseDown={(e) => { e.preventDefault(); document.execCommand("underline"); }} type="button" style={{ textDecoration: "underline" }}>U</button>
             <div className="portfolio-toolbar-sep" />
@@ -473,6 +500,14 @@ export function PortfolioDetailEditor({ projectId, initialHtml, onChange }: Port
               <option value="" disabled>굵기</option>
               {FONT_WEIGHT_OPTIONS.map((weight) => <option key={weight} value={weight}>{weight}</option>)}
             </select>
+            <label className="portfolio-color-control">
+              글자색
+              <input
+                type="color"
+                defaultValue="#141924"
+                onChange={(e) => applyTextStyle({ color: e.target.value })}
+              />
+            </label>
             <div className="portfolio-toolbar-sep" />
             {(["left", "center", "right"] as const).map((align) => (
               <button
@@ -480,7 +515,7 @@ export function PortfolioDetailEditor({ projectId, initialHtml, onChange }: Port
                 className={`secondary-link button-reset${activeCellData.align === align ? " is-active" : ""}`}
                 onMouseDown={(e) => {
                   e.preventDefault();
-                  updateCell(activeCell.rowId, activeCell.cellId, { align });
+                  updateCell(activeCell!.rowId, activeCell!.cellId, { align });
                 }}
                 type="button"
               >
@@ -494,7 +529,7 @@ export function PortfolioDetailEditor({ projectId, initialHtml, onChange }: Port
                 className={`secondary-link button-reset${activeCellData.width === width ? " is-active" : ""}`}
                 onMouseDown={(e) => {
                   e.preventDefault();
-                  updateCell(activeCell.rowId, activeCell.cellId, { width });
+                  updateCell(activeCell!.rowId, activeCell!.cellId, { width });
                 }}
                 type="button"
               >
@@ -510,7 +545,7 @@ export function PortfolioDetailEditor({ projectId, initialHtml, onChange }: Port
               <button
                 key={String(width)}
                 className={`secondary-link button-reset${activeCellData.width === width ? " is-active" : ""}`}
-                onClick={() => updateCell(activeCell.rowId, activeCell.cellId, { width })}
+                onClick={() => updateCell(activeCell!.rowId, activeCell!.cellId, { width })}
                 type="button"
               >
                 {WIDTH_LABELS[width]}
@@ -519,8 +554,8 @@ export function PortfolioDetailEditor({ projectId, initialHtml, onChange }: Port
             {activeCellData.type === "image" && (
               <>
                 <div className="portfolio-toolbar-sep" />
-                <button className={`secondary-link button-reset${activeCellData.radius === "square" ? " is-active" : ""}`} onClick={() => updateCell(activeCell.rowId, activeCell.cellId, { radius: "square" })} type="button">각짐</button>
-                <button className={`secondary-link button-reset${activeCellData.radius === "rounded" ? " is-active" : ""}`} onClick={() => updateCell(activeCell.rowId, activeCell.cellId, { radius: "rounded" })} type="button">라운드</button>
+                <button className={`secondary-link button-reset${activeCellData.radius === "square" ? " is-active" : ""}`} onClick={() => updateCell(activeCell!.rowId, activeCell!.cellId, { radius: "square" })} type="button">각짐</button>
+                <button className={`secondary-link button-reset${activeCellData.radius === "rounded" ? " is-active" : ""}`} onClick={() => updateCell(activeCell!.rowId, activeCell!.cellId, { radius: "rounded" })} type="button">라운드</button>
               </>
             )}
           </div>
@@ -528,9 +563,12 @@ export function PortfolioDetailEditor({ projectId, initialHtml, onChange }: Port
 
         {activeCellData?.type === "divider" && (
           <div className="portfolio-toolbar-group">
-            <input type="color" value={activeCellData.color} onChange={(e) => updateCell(activeCell.rowId, activeCell.cellId, { color: e.target.value })} />
-            <button className={`secondary-link button-reset${activeCellData.orientation === "horizontal" ? " is-active" : ""}`} onClick={() => updateCell(activeCell.rowId, activeCell.cellId, { orientation: "horizontal" })} type="button">가로선</button>
-            <button className={`secondary-link button-reset${activeCellData.orientation === "vertical" ? " is-active" : ""}`} onClick={() => updateCell(activeCell.rowId, activeCell.cellId, { orientation: "vertical" })} type="button">세로선</button>
+            <label className="portfolio-color-control">
+              선색
+              <input type="color" value={activeCellData.color} onChange={(e) => updateCell(activeCell!.rowId, activeCell!.cellId, { color: e.target.value })} />
+            </label>
+            <button className={`secondary-link button-reset${activeCellData.orientation === "horizontal" ? " is-active" : ""}`} onClick={() => updateCell(activeCell!.rowId, activeCell!.cellId, { orientation: "horizontal" })} type="button">가로선</button>
+            <button className={`secondary-link button-reset${activeCellData.orientation === "vertical" ? " is-active" : ""}`} onClick={() => updateCell(activeCell!.rowId, activeCell!.cellId, { orientation: "vertical" })} type="button">세로선</button>
           </div>
         )}
 
