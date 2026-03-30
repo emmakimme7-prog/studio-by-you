@@ -4205,7 +4205,8 @@ td {
 
   .mobile-icon-link {
     width: auto;
-    min-width: 52px;
+    min-width: 50px;
+    min-height: 50px;
     height: auto;
     padding: 8px 8px 6px;
     border-radius: 14px;
@@ -4221,8 +4222,8 @@ td {
   }
 
   .mobile-icon-link img {
-    width: 19px;
-    height: 19px;
+    width: 25px;
+    height: 25px;
     object-fit: contain;
     display: block;
   }
@@ -5393,7 +5394,13 @@ td {
   .admin-chat-summary-grid {
     grid-template-columns: 1fr;
   }
-
+.services-solution-side {
+    place-items: start;
+    gap: 18px;
+    display: grid;
+    grid-auto-flow: column;
+    justify-content: space-between;
+    align-items: center;
   .site-chat-meta {
     flex-direction: column;
     align-items: flex-start;

@@ -42,6 +42,12 @@ type DividerCell = {
 type Cell = TextCell | ImageCell | VideoCell | DividerCell;
 type Row = { id: string; cells: Cell[] };
 
+type TextToolbarState = {
+  fontSize: string;
+  fontWeight: string;
+  color: string;
+};
+
 const uid = () => Math.random().toString(36).slice(2, 10);
 const WIDTH_OPTIONS: CellWidth[] = ["auto", 25, 33, 50, 67, 75, 100];
 const FONT_SIZE_OPTIONS = [12, 14, 16, 18, 20, 24, 28, 32, 40, 48];
@@ -68,6 +74,34 @@ function escapeHtml(value: string) {
     .replaceAll("<", "&lt;")
     .replaceAll(">", "&gt;")
     .replaceAll('"', "&quot;");
+}
+
+function rgbToHex(value: string) {
+  if (value.startsWith("#")) return value;
+  const match = value.match(/rgba?\((\d+),\s*(\d+),\s*(\d+)/i);
+  if (!match) return "#141924";
+  return `#${[match[1], match[2], match[3]].map((part) => Number(part).toString(16).padStart(2, "0")).join("")}`;
+}
+
+function normalizeFontWeight(value: string) {
+  const numeric = Number.parseInt(value, 10);
+  if (Number.isNaN(numeric)) return "400";
+  const closest = FONT_WEIGHT_OPTIONS.reduce((best, option) =>
+    Math.abs(option - numeric) < Math.abs(best - numeric) ? option : best,
+  FONT_WEIGHT_OPTIONS[0]);
+  return String(closest);
+}
+
+function readTextToolbarState(editor: HTMLDivElement, range: Range | null): TextToolbarState | null {
+  const targetNode = range?.startContainer ?? editor;
+  const targetElement = targetNode.nodeType === Node.TEXT_NODE ? targetNode.parentElement : (targetNode as HTMLElement | null);
+  if (!targetElement || !editor.contains(targetElement)) return null;
+  const style = window.getComputedStyle(targetElement);
+  return {
+    fontSize: String(Math.round(Number.parseFloat(style.fontSize) || 16)),
+    fontWeight: normalizeFontWeight(style.fontWeight),
+    color: rgbToHex(style.color),
+  };
 }
 
 function parsePageSettings(root: HTMLElement) {
@@ -317,6 +351,7 @@ export function PortfolioDetailEditor({ projectId, initialHtml, onChange }: Port
   const [pageTextColor] = useState(initialState.textColor);
   const [activeCell, setActiveCell] = useState<{ rowId: string; cellId: string } | null>(null);
   const [uploading, setUploading] = useState(false);
+  const [textToolbar, setTextToolbar] = useState<TextToolbarState>({ fontSize: "16", fontWeight: "400", color: "#141924" });
   const prevProjectId = useRef(projectId);
   const fileInputRef = useRef<HTMLInputElement>(null);
   const pendingTarget = useRef<{ rowId: string | null } | null>(null);
@@ -411,6 +446,10 @@ export function PortfolioDetailEditor({ projectId, initialHtml, onChange }: Port
     textRefs.current[id] = el;
   }, []);
 
+  const activeCellData = activeCell
+    ? rows.find((row) => row.id === activeCell.rowId)?.cells.find((cell) => cell.id === activeCell.cellId) ?? null
+    : null;
+
   useEffect(() => {
     const handleSelectionChange = () => {
       if (!activeCell) return;
@@ -420,6 +459,8 @@ export function PortfolioDetailEditor({ projectId, initialHtml, onChange }: Port
       const range = selection.getRangeAt(0);
       if (editor.contains(range.commonAncestorContainer)) {
         savedRange.current = range.cloneRange();
+        const nextToolbar = readTextToolbarState(editor, range);
+        if (nextToolbar) setTextToolbar(nextToolbar);
       }
     };
 
@@ -427,9 +468,13 @@ export function PortfolioDetailEditor({ projectId, initialHtml, onChange }: Port
     return () => document.removeEventListener("selectionchange", handleSelectionChange);
   }, [activeCell]);
 
-  const activeCellData = activeCell
-    ? rows.find((row) => row.id === activeCell.rowId)?.cells.find((cell) => cell.id === activeCell.cellId) ?? null
-    : null;
+  useEffect(() => {
+    if (!activeCellData || activeCellData.type !== "text" || !activeCell) return;
+    const editor = textRefs.current[activeCell.cellId];
+    if (!editor) return;
+    const nextToolbar = readTextToolbarState(editor, savedRange.current);
+    if (nextToolbar) setTextToolbar(nextToolbar);
+  }, [activeCell, activeCellData]);
 
   const restoreSavedRange = () => {
     if (!savedRange.current) return;
@@ -446,6 +491,11 @@ export function PortfolioDetailEditor({ projectId, initialHtml, onChange }: Port
     restoreSavedRange();
     wrapSelectionWithStyle(editor, stylePatch);
     updateCell(activeCell.rowId, activeCell.cellId, { html: editor.innerHTML });
+    setTextToolbar((current) => ({
+      fontSize: stylePatch["font-size"] ? stylePatch["font-size"].replace("px", "") : current.fontSize,
+      fontWeight: stylePatch["font-weight"] ?? current.fontWeight,
+      color: stylePatch.color ?? current.color,
+    }));
   };
 
   const onRowDragStart = (rowId: string) => {
@@ -492,19 +542,17 @@ export function PortfolioDetailEditor({ projectId, initialHtml, onChange }: Port
             <button className="secondary-link button-reset" onMouseDown={(e) => { e.preventDefault(); document.execCommand("italic"); }} type="button"><i>I</i></button>
             <button className="secondary-link button-reset" onMouseDown={(e) => { e.preventDefault(); document.execCommand("underline"); }} type="button" style={{ textDecoration: "underline" }}>U</button>
             <div className="portfolio-toolbar-sep" />
-            <select onChange={(e) => applyTextStyle({ "font-size": `${e.target.value}px` })} defaultValue="">
-              <option value="" disabled>크기</option>
+            <select value={textToolbar.fontSize} onChange={(e) => applyTextStyle({ "font-size": `${e.target.value}px` })}>
               {FONT_SIZE_OPTIONS.map((size) => <option key={size} value={size}>{size}px</option>)}
             </select>
-            <select onChange={(e) => applyTextStyle({ "font-weight": e.target.value })} defaultValue="">
-              <option value="" disabled>굵기</option>
+            <select value={textToolbar.fontWeight} onChange={(e) => applyTextStyle({ "font-weight": e.target.value })}>
               {FONT_WEIGHT_OPTIONS.map((weight) => <option key={weight} value={weight}>{weight}</option>)}
             </select>
             <label className="portfolio-color-control">
               글자색
               <input
                 type="color"
-                defaultValue="#141924"
+                value={textToolbar.color}
                 onChange={(e) => applyTextStyle({ color: e.target.value })}
               />
             </label>
