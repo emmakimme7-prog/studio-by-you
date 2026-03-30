@@ -96,7 +96,18 @@ function readTextToolbarState(editor: HTMLDivElement, range: Range | null): Text
   const targetNode = range?.startContainer ?? editor;
   const targetElement = targetNode.nodeType === Node.TEXT_NODE ? targetNode.parentElement : (targetNode as HTMLElement | null);
   if (!targetElement || !editor.contains(targetElement)) return null;
-  const style = window.getComputedStyle(targetElement);
+
+  let styleSource: HTMLElement = targetElement;
+  let current: HTMLElement | null = targetElement;
+  while (current && current !== editor) {
+    if (current.style.fontSize || current.style.fontWeight || current.style.color) {
+      styleSource = current;
+      break;
+    }
+    current = current.parentElement;
+  }
+
+  const style = window.getComputedStyle(styleSource);
   return {
     fontSize: String(Math.round(Number.parseFloat(style.fontSize) || 16)),
     fontWeight: normalizeFontWeight(style.fontWeight),
@@ -296,12 +307,14 @@ function TextCellEditor({
   registerRef,
   onFocus,
   onInput,
+  onSelectionChange,
 }: {
   cell: TextCell;
   projectId: string;
   registerRef: (id: string, el: HTMLDivElement | null) => void;
   onFocus: () => void;
   onInput: (html: string) => void;
+  onSelectionChange: () => void;
 }) {
   const ref = useRef<HTMLDivElement>(null);
   const initKey = useRef("");
@@ -326,13 +339,22 @@ function TextCellEditor({
       suppressContentEditableWarning
       className="portfolio-block-text"
       style={{ outline: "none", minHeight: 36, textAlign: cell.align }}
-      onFocus={onFocus}
-      onInput={() => onInput(ref.current?.innerHTML ?? "")}
+      onFocus={() => {
+        onFocus();
+        onSelectionChange();
+      }}
+      onInput={() => {
+        onInput(ref.current?.innerHTML ?? "");
+        onSelectionChange();
+      }}
+      onMouseUp={onSelectionChange}
+      onKeyUp={onSelectionChange}
       onPaste={(event) => {
         event.preventDefault();
         const text = event.clipboardData.getData("text/plain");
         document.execCommand("insertText", false, text);
         onInput(ref.current?.innerHTML ?? "");
+        onSelectionChange();
       }}
     />
   );
@@ -446,6 +468,31 @@ export function PortfolioDetailEditor({ projectId, initialHtml, onChange }: Port
     textRefs.current[id] = el;
   }, []);
 
+  const syncTextToolbar = useCallback((cellId?: string) => {
+    const targetCellId = cellId ?? activeCell?.cellId;
+    if (!targetCellId) return;
+    const editor = textRefs.current[targetCellId];
+    if (!editor) return;
+
+    const selection = window.getSelection();
+    let range: Range | null = null;
+
+    if (selection && selection.rangeCount > 0) {
+      const candidate = selection.getRangeAt(0);
+      if (editor.contains(candidate.commonAncestorContainer)) {
+        range = candidate;
+        savedRange.current = candidate.cloneRange();
+      }
+    }
+
+    if (!range && savedRange.current && editor.contains(savedRange.current.commonAncestorContainer)) {
+      range = savedRange.current;
+    }
+
+    const nextToolbar = readTextToolbarState(editor, range);
+    if (nextToolbar) setTextToolbar(nextToolbar);
+  }, [activeCell]);
+
   const activeCellData = activeCell
     ? rows.find((row) => row.id === activeCell.rowId)?.cells.find((cell) => cell.id === activeCell.cellId) ?? null
     : null;
@@ -453,28 +500,17 @@ export function PortfolioDetailEditor({ projectId, initialHtml, onChange }: Port
   useEffect(() => {
     const handleSelectionChange = () => {
       if (!activeCell) return;
-      const editor = textRefs.current[activeCell.cellId];
-      const selection = window.getSelection();
-      if (!editor || !selection || selection.rangeCount === 0) return;
-      const range = selection.getRangeAt(0);
-      if (editor.contains(range.commonAncestorContainer)) {
-        savedRange.current = range.cloneRange();
-        const nextToolbar = readTextToolbarState(editor, range);
-        if (nextToolbar) setTextToolbar(nextToolbar);
-      }
+      syncTextToolbar(activeCell.cellId);
     };
 
     document.addEventListener("selectionchange", handleSelectionChange);
     return () => document.removeEventListener("selectionchange", handleSelectionChange);
-  }, [activeCell]);
+  }, [activeCell, syncTextToolbar]);
 
   useEffect(() => {
     if (!activeCellData || activeCellData.type !== "text" || !activeCell) return;
-    const editor = textRefs.current[activeCell.cellId];
-    if (!editor) return;
-    const nextToolbar = readTextToolbarState(editor, savedRange.current);
-    if (nextToolbar) setTextToolbar(nextToolbar);
-  }, [activeCell, activeCellData]);
+    syncTextToolbar(activeCell.cellId);
+  }, [activeCell, activeCellData, syncTextToolbar]);
 
   const restoreSavedRange = () => {
     if (!savedRange.current) return;
@@ -651,6 +687,7 @@ export function PortfolioDetailEditor({ projectId, initialHtml, onChange }: Port
                         registerRef={registerTextRef}
                         onFocus={() => setActiveCell({ rowId: row.id, cellId: cell.id })}
                         onInput={(html) => updateCell(row.id, cell.id, { html })}
+                        onSelectionChange={() => syncTextToolbar(cell.id)}
                       />
                     )}
 

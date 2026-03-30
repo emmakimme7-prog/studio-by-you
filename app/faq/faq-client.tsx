@@ -54,7 +54,7 @@ export function FaqClient({ description, groups, title }: FaqClientProps) {
         <h1>{title}</h1>
         <span>{description}</span>
         <div className="faq-search">
-          <span aria-hidden="true" className="faq-search-icon">
+          <span aria-hidden="true" className="faq-search-icon" >
             <img alt="" src="/home-assets/search.svg" />
           </span>
           <input
