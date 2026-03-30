@@ -86,17 +86,38 @@ export function SiteChatWidget({ config, privacyPolicy }: SiteChatWidgetProps) {
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [acceptedPrivacy, setAcceptedPrivacy] = useState(false);
   const [isPrivacyModalOpen, setIsPrivacyModalOpen] = useState(false);
+  const [expandedImageUrl, setExpandedImageUrl] = useState("");
   const [isMounted, setIsMounted] = useState(false);
   const [submitState, setSubmitState] = useState<SubmitState>({ kind: "idle" });
   const fileInputRef = useRef<HTMLInputElement | null>(null);
   const threadRef = useRef<HTMLDivElement | null>(null);
+  const composeRef = useRef<HTMLDivElement | null>(null);
+  const messageInputRef = useRef<HTMLTextAreaElement | null>(null);
+  const nameInputRef = useRef<HTMLInputElement | null>(null);
+  const phoneInputRef = useRef<HTMLInputElement | null>(null);
   const hasActiveConversation = Boolean(conversation || conversationId);
+  const messageCount = conversation?.messages.length ?? 0;
+  const activeName = isEditingContact ? editingName : name;
+  const activePhone = isEditingContact ? editingPhone : phone;
+  const trimmedName = activeName.trim();
+  const trimmedPhone = activePhone.trim();
+  const trimmedMessage = message.trim();
+  const canSubmit = hasActiveConversation
+    ? Boolean(trimmedMessage || pendingImage)
+    : Boolean(trimmedName && trimmedPhone && (trimmedMessage || pendingImage));
+  const intentOptions = useMemo(() => {
+    if (!intent || quickActions.includes(intent)) {
+      return quickActions;
+    }
+
+    return [...quickActions, intent];
+  }, [intent, quickActions]);
 
   useEffect(() => {
-    setIntent((current) => (quickActions.includes(current) ? current : (quickActions[0] ?? "빠른 문의")));
+    setIntent((current) => current || (quickActions[0] ?? "빠른 문의"));
   }, [quickActions]);
 
-  if (pathname?.startsWith("/studiobyyou")) {
+  if (pathname?.startsWith("/studiobyyou") || pathname?.startsWith("/portfolio/studio")) {
     return null;
   }
 
@@ -127,15 +148,58 @@ export function SiteChatWidget({ config, privacyPolicy }: SiteChatWidgetProps) {
   }, []);
 
   useEffect(() => {
+    function handleOpenChat(event: Event) {
+      const customEvent = event as CustomEvent<{ intent?: string }>;
+      const nextIntent = customEvent.detail?.intent?.trim();
+
+      if (nextIntent) {
+        setIntent(nextIntent);
+        persistSession(conversationId, nextIntent, name, phone, conversation);
+      }
+
+      setIsOpen(true);
+      setSubmitState({ kind: "idle" });
+    }
+
+    window.addEventListener("studio-by-you:open-chat", handleOpenChat);
+
+    return () => {
+      window.removeEventListener("studio-by-you:open-chat", handleOpenChat);
+    };
+  }, [conversation, conversationId, name, phone]);
+
+  useEffect(() => {
     if (!isOpen || !threadRef.current) {
       return;
     }
 
-    threadRef.current.scrollTop = threadRef.current.scrollHeight;
-  }, [conversation, isOpen]);
+    const frame = requestAnimationFrame(() => {
+      const element = threadRef.current;
+
+      if (!element) {
+        return;
+      }
+
+      element.scrollTop = element.scrollHeight;
+    });
+
+    return () => cancelAnimationFrame(frame);
+  }, [isOpen, messageCount]);
 
   useEffect(() => {
-    if (!conversationId || !isOpen) return;
+    if (!isOpen || !pendingImage) {
+      return;
+    }
+
+    const frame = requestAnimationFrame(() => {
+      composeRef.current?.scrollIntoView({ block: "end", behavior: "smooth" });
+    });
+
+    return () => cancelAnimationFrame(frame);
+  }, [isOpen, pendingImage]);
+
+  useEffect(() => {
+    if (!conversationId || !isOpen || isSubmitting) return;
 
     let cancelled = false;
     let timer: ReturnType<typeof setTimeout> | undefined;
@@ -237,7 +301,7 @@ export function SiteChatWidget({ config, privacyPolicy }: SiteChatWidgetProps) {
       document.removeEventListener("visibilitychange", handleVisibilityChange);
       window.removeEventListener("focus", handleVisibilityChange);
     };
-  }, [conversationId, isEditingContact, isOpen]);
+  }, [conversationId, isEditingContact, isOpen, isSubmitting]);
 
   function persistSession(
     nextConversationId: string,
@@ -263,10 +327,12 @@ export function SiteChatWidget({ config, privacyPolicy }: SiteChatWidgetProps) {
       return;
     }
 
-    const nextMessage = options?.messageOverride ?? message;
+    const nextMessage = options?.messageOverride ?? messageInputRef.current?.value ?? message;
     const nextImageDataUrl = options?.imageDataUrl ?? pendingImage?.dataUrl ?? "";
-    const trimmedName = name.trim();
-    const trimmedPhone = phone.trim();
+    const activeDraftName = isEditingContact ? editingName : nameInputRef.current?.value ?? name;
+    const activeDraftPhone = isEditingContact ? editingPhone : phoneInputRef.current?.value ?? phone;
+    const trimmedName = activeDraftName.trim();
+    const trimmedPhone = activeDraftPhone.trim();
 
     if (!trimmedName || !trimmedPhone || (!nextMessage.trim() && !nextImageDataUrl)) {
       setSubmitState({ kind: "error", message: "이름, 연락처와 문의 내용 또는 이미지를 입력해주세요." });
@@ -340,7 +406,7 @@ export function SiteChatWidget({ config, privacyPolicy }: SiteChatWidgetProps) {
       setConversation(result.conversation);
       setConversationId(result.conversationId);
       setAcceptedPrivacy(Boolean(result.conversation.consentAcceptedAt));
-      persistSession(result.conversationId, intent, trimmedName, trimmedPhone, result.conversation);
+      persistSession(result.conversationId, intent, result.conversation.name, result.conversation.phone, result.conversation);
       setSubmitState({ kind: "success", message: result.message || "메시지를 보냈습니다." });
     } catch (error) {
       setConversation(previousConversation);
@@ -406,9 +472,19 @@ export function SiteChatWidget({ config, privacyPolicy }: SiteChatWidgetProps) {
     const nextName = editingName.trim().slice(0, 10);
     const nextPhone = formatPhoneInput(editingPhone);
     const resolvedConversationId = conversationId || (conversation && conversation.id !== "pending" ? conversation.id : "");
+    const currentName = name.trim();
+    const currentPhone = phone.trim();
 
     if (!nextName || !nextPhone) {
       setSubmitState({ kind: "error", message: "이름과 연락처를 모두 입력해주세요." });
+      return;
+    }
+
+    if (nextName === currentName && nextPhone === currentPhone) {
+      setEditingName(currentName);
+      setEditingPhone(currentPhone);
+      setIsEditingContact(false);
+      setSubmitState({ kind: "idle" });
       return;
     }
 
@@ -494,14 +570,15 @@ export function SiteChatWidget({ config, privacyPolicy }: SiteChatWidgetProps) {
                           <span className="site-chat-summary-badge">내가 입력한 정보</span>
                           <button
                             className="site-chat-summary-action button-reset"
+                            disabled={isSubmitting}
                             onClick={() => {
                               if (isEditingContact) {
                                 void handleContactSave();
                                 return;
                               }
 
-                              setEditingName(name);
-                              setEditingPhone(phone);
+                              setEditingName(conversation?.name || name);
+                              setEditingPhone(conversation?.phone || phone);
                               setIsEditingContact(true);
                             }}
                             type="button"
@@ -542,9 +619,13 @@ export function SiteChatWidget({ config, privacyPolicy }: SiteChatWidgetProps) {
                             {item.sender === "admin" ? config.panelTitle : "나"} · {formatTime(item.createdAt)}
                           </span>
                           {item.imageDataUrl ? (
-                            <a className="site-chat-image-link" href={item.imageDataUrl} rel="noreferrer" target="_blank">
+                            <button
+                              className="site-chat-image-link button-reset"
+                              onClick={() => setExpandedImageUrl(item.imageDataUrl || "")}
+                              type="button"
+                            >
                               <img alt="첨부 이미지" className="site-chat-image" src={item.imageDataUrl} />
-                            </a>
+                            </button>
                           ) : null}
                           {item.text ? <span>{item.text}</span> : null}
                         </div>
@@ -557,7 +638,7 @@ export function SiteChatWidget({ config, privacyPolicy }: SiteChatWidgetProps) {
 
             {!hasActiveConversation ? (
               <div className="site-chat-chip-row" aria-label="문의 주제 선택">
-                {quickActions.map((item) => (
+                {intentOptions.map((item) => (
                   <button
                     key={item}
                     className={`site-chat-chip${item === intent ? " is-active" : ""}`}
@@ -573,18 +654,28 @@ export function SiteChatWidget({ config, privacyPolicy }: SiteChatWidgetProps) {
             <form className="site-chat-form" onSubmit={handleSubmit}>
               {!hasActiveConversation ? (
                 <>
-                  <input className="site-chat-input" maxLength={10} onChange={(event) => setName(event.target.value.slice(0, 10))} placeholder="이름" value={name} />
+                  <input
+                    className="site-chat-input"
+                    maxLength={10}
+                    onChange={(event) => setName(event.target.value.slice(0, 10))}
+                    onInput={(event) => setName((event.target as HTMLInputElement).value.slice(0, 10))}
+                    placeholder="이름"
+                    ref={nameInputRef}
+                    value={name}
+                  />
                   <input
                     className="site-chat-input"
                     inputMode="numeric"
                     maxLength={13}
                     onChange={(event) => setPhone(formatPhoneInput(event.target.value))}
+                    onInput={(event) => setPhone(formatPhoneInput((event.target as HTMLInputElement).value))}
                     placeholder="연락처"
+                    ref={phoneInputRef}
                     value={phone}
                   />
                 </>
               ) : null}
-              <div className="site-chat-compose">
+              <div className="site-chat-compose" ref={composeRef}>
                 {pendingImage ? (
                   <div className="site-chat-upload-pill">
                     <span className="site-chat-upload-pill-name">{pendingImage.name}</span>
@@ -601,8 +692,10 @@ export function SiteChatWidget({ config, privacyPolicy }: SiteChatWidgetProps) {
                 <textarea
                   className="site-chat-textarea"
                   onChange={(event) => setMessage(event.target.value)}
+                  onInput={(event) => setMessage((event.target as HTMLTextAreaElement).value)}
                   onPaste={(event) => void handlePaste(event)}
                   placeholder="메세지"
+                  ref={messageInputRef}
                   rows={4}
                   value={message}
                 />
@@ -660,8 +753,8 @@ export function SiteChatWidget({ config, privacyPolicy }: SiteChatWidgetProps) {
 
               {submitState.kind === "error" ? <p className="site-chat-feedback is-error">{submitState.message}</p> : null}
 
-              <button className="site-chat-primary" disabled={isSubmitting} type="submit">
-                {isSubmitting ? "보내는 중..." : hasActiveConversation ? "메시지 보내기" : "동의하고 채팅 시작"}
+              <button className="site-chat-primary" disabled={isSubmitting || !canSubmit} type="submit">
+                {isSubmitting ? "보내는 중..." : "메세지 보내기"}
               </button>
             </form>
           </div>
@@ -687,6 +780,12 @@ export function SiteChatWidget({ config, privacyPolicy }: SiteChatWidgetProps) {
               onClose={() => setIsPrivacyModalOpen(false)}
               privacyPolicy={privacyPolicy}
             />,
+            document.body,
+          )
+        : null}
+      {isMounted && expandedImageUrl
+        ? createPortal(
+            <ImagePreviewModal imageUrl={expandedImageUrl} onClose={() => setExpandedImageUrl("")} />,
             document.body,
           )
         : null}
@@ -724,6 +823,25 @@ function PrivacyPolicyModal({
             <p key={`privacy-line-${index}`}>{line}</p>
           ))}
         </div>
+      </div>
+    </div>
+  );
+}
+
+function ImagePreviewModal({
+  imageUrl,
+  onClose,
+}: {
+  imageUrl: string;
+  onClose: () => void;
+}) {
+  return (
+    <div className="site-chat-policy-backdrop is-open site-chat-image-backdrop" onClick={onClose} role="presentation">
+      <div aria-modal="true" className="site-chat-image-modal" onClick={(event) => event.stopPropagation()} role="dialog">
+        <button aria-label="이미지 닫기" className="site-chat-close site-chat-image-close" onClick={onClose} type="button">
+          ×
+        </button>
+        <img alt="확대 이미지" className="site-chat-image-preview" src={imageUrl} />
       </div>
     </div>
   );

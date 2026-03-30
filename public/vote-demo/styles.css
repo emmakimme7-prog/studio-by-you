@@ -6,6 +6,7 @@
   --surface-soft: #f8fbff;
   --ink: #1f241f;
   --muted: #667065;
+  --muted-light: #a7b0bc;
   --line: rgba(0, 105, 210, 0.12);
   --brand: #0069d2;
   --brand-strong: #0057ad;
@@ -44,6 +45,28 @@ body {
   width: min(1220px, calc(100% - 32px));
   margin: 0 auto;
   padding: 24px 0 56px;
+}
+
+.app-toast {
+  position: fixed;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  z-index: 30;
+  min-width: 240px;
+  max-width: min(420px, calc(100vw - 40px));
+  padding: 14px 18px;
+  border-radius: 16px;
+  background: rgba(31, 36, 31, 0.5);
+  color: #fff;
+  font-size: 14px;
+  font-weight: 700;
+  box-shadow: 0 16px 34px rgba(15, 23, 42, 0.18);
+  text-align: center;
+}
+
+.app-toast-success {
+  background: rgba(0, 105, 210, 0.5);
 }
 
 .hero {
@@ -288,12 +311,13 @@ h1 {
 
 .form-actions {
   display: flex;
-  justify-content: flex-start;
+  justify-content: flex-end;
 }
 
 .inline-edit-actions {
   gap: 10px;
   flex-wrap: wrap;
+  justify-content: flex-end;
 }
 
 .student-toolbar {
@@ -342,7 +366,7 @@ h1 {
 }
 
 .mini-filter {
-  min-width: 150px;
+  min-width: 0;
 }
 
 .student-filter-actions {
@@ -376,7 +400,7 @@ h1 {
 
 .student-info-fields {
   display: grid;
-  grid-template-columns: 156px 156px 156px minmax(180px, 1fr);
+  grid-template-columns: repeat(3, minmax(112px, 0.6fr)) minmax(220px, 1.2fr);
   gap: 12px;
   align-items: center;
 }
@@ -588,14 +612,14 @@ button.secondary.election-delete-button:hover {
 
 .student-table {
   width: 100%;
-  table-layout: auto;
+  table-layout: fixed;
   border-collapse: separate;
   border-spacing: 0;
 }
 
 .student-table thead th {
-  padding: 16px 18px;
-  text-align: center;
+  padding: 14px 10px;
+  text-align: left;
   font-size: 12px;
   font-weight: 800;
   color: var(--muted);
@@ -614,12 +638,11 @@ button.secondary.election-delete-button:hover {
 }
 
 .student-table tbody td {
-  padding: 22px 18px;
-  vertical-align: middle;
-  text-align: center;
-  font-size: 14px;
+  padding: 14px 10px;
+  vertical-align: top;
+  font-size: 13px;
   border-bottom: 1px solid rgba(0, 105, 210, 0.08);
-  word-break: keep-all;
+  word-break: break-word;
 }
 
 .student-table tbody tr:last-child td {
@@ -702,7 +725,6 @@ button.secondary.election-delete-button:hover {
   letter-spacing: -0.03em;
   box-shadow: none;
   border-radius: 0;
-  text-align: center;
 }
 
 .content-subtab-button.active {
@@ -932,11 +954,6 @@ button.secondary.election-delete-button:hover {
 .stat-card {
   padding: 20px;
   border-radius: 24px;
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  justify-content: center;
-  text-align: center;
 }
 
 .stat-card span {
@@ -1041,6 +1058,36 @@ textarea:focus {
 
 input[type="file"] {
   padding: 11px 12px;
+  color: var(--muted-light);
+}
+
+input::placeholder,
+textarea::placeholder {
+  color: var(--muted-light);
+}
+
+input[type="file"]::file-selector-button {
+  margin-right: 12px;
+  border: 1px solid #d8dee8;
+  border-radius: 12px;
+  background: #f1f3f5;
+  color: #667487;
+  padding: 9px 12px;
+  font-size: 13px;
+  font-weight: 700;
+  cursor: pointer;
+}
+
+input[type="file"]::-webkit-file-upload-button {
+  margin-right: 12px;
+  border: 1px solid #d8dee8;
+  border-radius: 12px;
+  background: #f1f3f5;
+  color: #667487;
+  padding: 9px 12px;
+  font-size: 13px;
+  font-weight: 700;
+  cursor: pointer;
 }
 
 button,
@@ -1258,7 +1305,7 @@ button:disabled {
   display: grid;
   grid-template-columns: minmax(0, 1fr) auto;
   align-items: center;
-  gap: 16px 20px;
+  gap: 14px 20px;
 }
 
 .candidate-meta {
@@ -1274,24 +1321,19 @@ button:disabled {
   min-width: 0;
 }
 
+.candidate-item > .result-vote-meta,
+.candidate-item > .result-bar-track {
+  grid-column: 1 / -1;
+}
+
 .candidate-photo {
   width: 76px;
   height: 76px;
-  border-radius: 20px;
+  border-radius: 22px;
   object-fit: cover;
-  border: 0;
-  background: transparent;
+  border: 1px solid rgba(0, 105, 210, 0.12);
+  background: #f4f8fc;
   flex-shrink: 0;
-}
-
-.candidate-item > button {
-  min-width: 118px;
-  align-self: center;
-  justify-self: end;
-}
-
-.candidate-item > .result-bar-track {
-  grid-column: 1 / -1;
 }
 
 .candidate-photo.placeholder {
@@ -1429,6 +1471,13 @@ button:disabled {
   margin-top: 2px;
 }
 
+.result-vote-meta {
+  margin: -4px 0 0;
+  color: var(--muted);
+  font-size: 14px;
+  font-weight: 700;
+}
+
 .section-tools {
   margin-bottom: 12px;
   align-items: center;
@@ -1487,10 +1536,6 @@ code {
     grid-template-columns: repeat(3, minmax(0, 1fr));
   }
 
-  .student-stats-grid {
-    grid-template-columns: repeat(2, minmax(0, 1fr));
-  }
-
   .list-grid,
   .vote-grid,
   .auth-grid {
@@ -1529,8 +1574,7 @@ code {
     padding: 24px 22px 26px;
   }
 
-  .student-filter-form,
-  .student-info-fields {
+  .student-filter-form {
     grid-template-columns: 1fr;
   }
 
@@ -1548,28 +1592,16 @@ code {
   }
 
   .school-admin-stats-grid {
-    grid-template-columns: 1fr;
-  }
-
-  .student-stats-grid {
-    grid-template-columns: 1fr;
+    grid-template-columns: repeat(3, minmax(0, 1fr));
   }
 
   .page-header,
   .row-between,
   .section-tools,
+  .candidate-item,
   .candidate-builder-header {
     flex-direction: column;
     align-items: stretch;
-  }
-
-  .candidate-item {
-    grid-template-columns: 1fr;
-  }
-
-  .candidate-item > button {
-    width: 100%;
-    justify-self: stretch;
   }
 
   .dashboard-grid.student-admin-grid.account-create-grid {
@@ -1603,9 +1635,17 @@ code {
     min-height: 58px;
     font-size: 16px;
   }
+
+  .student-info-fields {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
 }
 
 @media (max-width: 640px) {
+  .student-info-fields {
+    grid-template-columns: 1fr;
+  }
+
   .app-shell {
     width: min(100% - 20px, 1220px);
     padding-top: 18px;
@@ -1652,20 +1692,12 @@ code {
   }
 
   .candidate-meta {
-    align-items: center;
-    flex-direction: column;
-    text-align: center;
+    align-items: flex-start;
   }
 
   .candidate-photo {
     width: 64px;
     height: 64px;
     border-radius: 18px;
-  }
-
-  .student-table thead th,
-  .student-table tbody td {
-    padding-inline: 12px;
-    font-size: 13px;
   }
 }

@@ -98,8 +98,11 @@ export async function PATCH(request: Request) {
     };
 
     const conversationId = String(body.conversationId || "").trim();
-    const name = String(body.name || "").trim();
+    const name = String(body.name || "")
+      .trim()
+      .slice(0, 10);
     const phone = String(body.phone || "").trim();
+    const phoneDigits = phone.replace(/\D/g, "");
 
     if (!conversationId) {
       return NextResponse.json({ message: "채팅방 정보가 없습니다." }, { status: 400 });
@@ -107,6 +110,10 @@ export async function PATCH(request: Request) {
 
     if (!name || !phone) {
       return NextResponse.json({ message: "이름과 연락처를 모두 입력해주세요." }, { status: 400 });
+    }
+
+    if (phoneDigits.length < 10 || phoneDigits.length > 11) {
+      return NextResponse.json({ message: "연락처 형식을 다시 확인해주세요." }, { status: 400 });
     }
 
     const conversation = await updateConversationContact({

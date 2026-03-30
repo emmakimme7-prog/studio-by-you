@@ -5,10 +5,90 @@ import { ContactForm } from "@/app/contact/contact-form";
 import { FaqClient } from "@/app/faq/faq-client";
 import { HomePortfolioGrid } from "@/app/home-portfolio-grid";
 import { PortfolioList } from "@/app/portfolio/portfolio-list";
+import { ServiceScrollShowcase } from "@/components/service-scroll-showcase";
 import { SiteHeader } from "@/components/site-header";
-import type { SiteContent } from "@/lib/site-content";
+import { LazyVideo } from "@/components/lazy-video";
+import { isVideoSrc } from "@/lib/client-upload";
+import type { SiteContent, SiteProject } from "@/lib/site-content";
 
 export type StudioDemoFrontPage = "home" | "portfolio" | "services" | "pricing" | "faq" | "contact";
+
+const DEMO_PORTFOLIO_SETS = [
+  {
+    thumb: "https://images.pexels.com/photos/7439135/pexels-photo-7439135.jpeg?cs=srgb&dl=pexels-cottonbro-7439135.jpg&fm=jpg",
+    detail: [
+      "https://images.pexels.com/photos/7439135/pexels-photo-7439135.jpeg?cs=srgb&dl=pexels-cottonbro-7439135.jpg&fm=jpg",
+      "https://images.pexels.com/photos/20555791/pexels-photo-20555791.jpeg?cs=srgb&dl=pexels-jakubzerdzicki-20555791.jpg&fm=jpg",
+      "https://images.pexels.com/photos/13620263/pexels-photo-13620263.jpeg?cs=srgb&dl=pexels-pramodtiwari-13620263.jpg&fm=jpg",
+    ],
+  },
+  {
+    thumb: "https://images.pexels.com/photos/17036353/pexels-photo-17036353.jpeg?cs=srgb&dl=pexels-jakubzerdzicki-17036353.jpg&fm=jpg",
+    detail: [
+      "https://images.pexels.com/photos/17036353/pexels-photo-17036353.jpeg?cs=srgb&dl=pexels-jakubzerdzicki-17036353.jpg&fm=jpg",
+      "https://images.pexels.com/photos/27505478/pexels-photo-27505478.jpeg?cs=srgb&dl=pexels-jakubzerdzicki-27505478.jpg&fm=jpg",
+      "https://images.pexels.com/photos/3913016/pexels-photo-3913016.jpeg?cs=srgb&dl=pexels-thisisengineering-3913016.jpg&fm=jpg",
+    ],
+  },
+  {
+    thumb: "https://images.pexels.com/photos/13620262/pexels-photo-13620262.jpeg?cs=srgb&dl=pexels-pramodtiwari-13620262.jpg&fm=jpg",
+    detail: [
+      "https://images.pexels.com/photos/13620262/pexels-photo-13620262.jpeg?cs=srgb&dl=pexels-pramodtiwari-13620262.jpg&fm=jpg",
+      "https://images.pexels.com/photos/13620263/pexels-photo-13620263.jpeg?cs=srgb&dl=pexels-pramodtiwari-13620263.jpg&fm=jpg",
+      "https://images.pexels.com/photos/20555791/pexels-photo-20555791.jpeg?cs=srgb&dl=pexels-jakubzerdzicki-20555791.jpg&fm=jpg",
+    ],
+  },
+];
+
+function escapeHtml(value: string) {
+  return value
+    .replaceAll("&", "&amp;")
+    .replaceAll("<", "&lt;")
+    .replaceAll(">", "&gt;")
+    .replaceAll('"', "&quot;")
+    .replaceAll("'", "&#39;");
+}
+
+function buildDemoDetailHtml(project: SiteProject, images: string[]) {
+  const summaryLines = project.summary
+    .split("\n")
+    .map((line) => line.trim())
+    .filter(Boolean)
+    .map((line) => `<p>${escapeHtml(line)}</p>`)
+    .join("");
+
+  const imageMarkup = images
+    .map(
+      (image, index) =>
+        `<figure><img src="${image}" alt="${escapeHtml(project.title)} ${index + 1}" loading="lazy" decoding="async" /></figure>`,
+    )
+    .join("");
+
+  return `
+    <section class="portfolio-detail-section">
+      <div class="portfolio-detail-intro">
+        <p>${escapeHtml(project.category)}</p>
+        <h3>${escapeHtml(project.title)}</h3>
+        <div>${summaryLines}</div>
+      </div>
+      <div class="portfolio-detail-gallery">
+        ${imageMarkup}
+      </div>
+    </section>
+  `;
+}
+
+function withStudioDemoProjects(projects: SiteProject[]) {
+  return projects.map((project, index) => {
+    const set = DEMO_PORTFOLIO_SETS[index % DEMO_PORTFOLIO_SETS.length];
+    return {
+      ...project,
+      thumbnailImage: set.thumb,
+      detailImages: set.detail,
+      detailHtml: buildDemoDetailHtml(project, set.detail),
+    };
+  });
+}
 
 function DemoHeader({
   content,
@@ -21,25 +101,43 @@ function DemoHeader({
 }
 
 function HomePage({ content }: { content: SiteContent }) {
+  const projects = withStudioDemoProjects(content.projects);
+  const heroObjectPosition = `${content.hero.mediaPositionX ?? 50}% ${content.hero.mediaPositionY ?? 50}%`;
+  const heroScale = content.hero.mediaScale ?? 100;
+  const heroTaglineStyle = { fontSize: `${content.hero.taglineFontSize ?? 14}px`, fontWeight: content.hero.taglineFontWeight ?? "700" };
+  const heroTitleStyle = { fontSize: `${content.hero.titleFontSize ?? 62}px`, fontWeight: content.hero.titleFontWeight ?? "700" };
+  const heroDescriptionStyle = { fontSize: `${content.hero.descriptionFontSize ?? 15}px`, fontWeight: content.hero.descriptionFontWeight ?? "500" };
+
   return (
     <>
       <section className="hero-band">
-        <Image
-          alt="메인 배경"
-          className="reference-hero-image"
-          fill
-          priority
-          sizes="100vw"
-          src="/home-assets/hero-bg-optimized.jpg"
-        />
+        {isVideoSrc(content.hero.media || "") ? (
+          <LazyVideo
+            className="reference-hero-image"
+            src={content.hero.media || ""}
+            style={{ objectPosition: heroObjectPosition, transform: `scale(${heroScale / 100})` }}
+          />
+        ) : (
+          <Image
+            alt="메인 배경"
+            className="reference-hero-image"
+            fill
+            priority
+            sizes="100vw"
+            src={content.hero.media || "/home-assets/hero-bg-optimized.jpg"}
+            style={{ objectPosition: heroObjectPosition, transform: `scale(${heroScale / 100})` }}
+          />
+        )}
         <div className="hero-image-overlay" />
         <div className="hero-band-inner">
           <DemoHeader content={content} />
 
-          <div className="reference-hero-copy">
-            <p>{content.brand.tagline}</p>
-            <h1>{content.hero.title}</h1>
-            <span className="pre-line-copy">{content.hero.description}</span>
+          <div className={`reference-hero-copy${content.hero.description?.trim() ? "" : " is-description-empty"}`}>
+            <p style={heroTaglineStyle}>{content.brand.tagline}</p>
+            <h1 style={heroTitleStyle}>{content.hero.title}</h1>
+            {content.hero.description?.trim() ? (
+              <span className="pre-line-copy" style={heroDescriptionStyle}>{content.hero.description}</span>
+            ) : null}
           </div>
         </div>
       </section>
@@ -51,41 +149,18 @@ function HomePage({ content }: { content: SiteContent }) {
               <div className="panel-heading-kicker">이런 작업들을 했어요.</div>
               <p>대표 포트폴리오</p>
             </div>
-            <HomePortfolioGrid projects={content.projects} />
-          </div>
-        </section>
-
-        <section className="services-grid-section">
-          <div className="panel-heading-reference">
-            <div className="panel-heading-kicker">직접 운영 중인 서비스</div>
-            <p>운영 서비스</p>
-          </div>
-          <div className="services-grid">
-            {content.operatedServices.map((service) => (
-              <article className="service-card" key={service.title}>
-                <div className="service-card-image">
-                  <img alt={service.title} src={service.image} />
-                </div>
-                <div className="service-card-body">
-                  <div className="service-card-head">
-                    <h2>{service.title}</h2>
-                    {service.badge ? <span className="service-badge">{service.badge}</span> : null}
-                  </div>
-                  <p className="service-card-desc">{service.description}</p>
-                  <div className="service-card-pricing">
-                    <strong>{service.pricing}</strong>
-                    {service.pricingDetail ? <span>{service.pricingDetail}</span> : null}
-                  </div>
-                </div>
-              </article>
-            ))}
+            <HomePortfolioGrid projects={projects} />
+            <a className="panel-footer-chip" href="/portfolio/studio/portfolio">
+              더보기
+              <span aria-hidden="true">→</span>
+            </a>
           </div>
         </section>
 
         <section className="process-section" id="process">
           <div className="panel-heading-reference process-heading">
             <div className="panel-heading-kicker">이렇게 진행돼요.</div>
-            <p>{content.processTitle}</p>
+            <p className="pre-line-copy">{content.processTitle}</p>
           </div>
           <div className="process-card-grid">
             {content.processSteps.map((item, index) => (
@@ -106,52 +181,14 @@ function HomePage({ content }: { content: SiteContent }) {
             ))}
           </div>
         </section>
-
-        <section className="pricing-shell">
-          <div className="pricing-hero">
-            <h1>{content.pricing.title}</h1>
-            <span>{content.pricing.description}</span>
-          </div>
-
-          {content.pricing.promo.enabled ? (
-            <div className="pricing-promo">
-              <span>{content.pricing.promo.message}</span>
-            </div>
-          ) : null}
-
-          <div className="pricing-grid">
-            {content.pricing.plans.map((plan) => (
-              <article className={`pricing-card${plan.featured ? " is-featured" : ""}`} key={plan.name}>
-                <div className="pricing-card-head">
-                  <p>{plan.name}</p>
-                  <strong>{plan.price}</strong>
-                  <span>{plan.description}</span>
-                </div>
-                <ul>
-                  {plan.points.map((point) => (
-                    <li key={point}>{point}</li>
-                  ))}
-                </ul>
-              </article>
-            ))}
-          </div>
-        </section>
-
-        <FaqClient description={content.faq.description} groups={content.faq.groups} title={content.faq.title} />
-
-        <section className="contact-reference-shell">
-          <div className="contact-reference-copy">
-            <h1>문의하기</h1>
-            <span>{content.contact.headline}</span>
-            <span className="contact-reference-email">{content.contact.email}</span>
-          </div>
-        </section>
       </main>
     </>
   );
 }
 
 function PortfolioPage({ content }: { content: SiteContent }) {
+  const projects = withStudioDemoProjects(content.projects);
+
   return (
     <main className="subpage-shell">
       <DemoHeader compact content={content} />
@@ -159,7 +196,7 @@ function PortfolioPage({ content }: { content: SiteContent }) {
         <h1>포트폴리오</h1>
         <p>{content.projectsIntro}</p>
       </section>
-      <PortfolioList projects={content.projects} />
+      <PortfolioList projects={projects} />
     </main>
   );
 }
@@ -169,41 +206,10 @@ function ServicesPage({ content }: { content: SiteContent }) {
     <main className="subpage-shell">
       <DemoHeader compact content={content} />
       <section className="subpage-hero">
-        <h1>운영 서비스</h1>
-        <p>직접 기획하고 운영 중인 서비스입니다. 지금 바로 사용해보세요.</p>
+        <h1>운영 솔루션</h1>
+        <p>{content.servicesIntro}</p>
       </section>
-      <section className="services-grid-section">
-        <div className="services-grid">
-          {content.operatedServices.map((service) => (
-            <article className="service-card" key={service.title}>
-              <div className="service-card-image">
-                <img alt={service.title} src={service.image} />
-              </div>
-              <div className="service-card-body">
-                <div className="service-card-head">
-                  <h2>{service.title}</h2>
-                  {service.badge ? <span className="service-badge">{service.badge}</span> : null}
-                </div>
-                <p className="service-card-desc">{service.description}</p>
-                <div className="service-card-pricing">
-                  <strong>{service.pricing}</strong>
-                  {service.pricingDetail ? <span>{service.pricingDetail}</span> : null}
-                </div>
-                <div className="service-card-actions">
-                  {service.link ? (
-                    <a className="primary-link" href={service.link} rel="noopener noreferrer" target="_blank">
-                      서비스 이용하기 →
-                    </a>
-                  ) : null}
-                  <a className="secondary-link" href="/portfolio/studio/contact">
-                    문의하기
-                  </a>
-                </div>
-              </div>
-            </article>
-          ))}
-        </div>
-      </section>
+      <ServiceScrollShowcase services={content.operatedServices} />
     </main>
   );
 }
@@ -214,7 +220,7 @@ function PricingPage({ content }: { content: SiteContent }) {
       <DemoHeader compact content={content} />
       <section className="pricing-shell">
         <div className="pricing-hero">
-          <h1>필요한 서비스와 요금을 확인하세요.</h1>
+          <h1>{content.pricing.title}</h1>
           <span>{content.pricing.description}</span>
         </div>
 
@@ -238,7 +244,7 @@ function PricingPage({ content }: { content: SiteContent }) {
                 ))}
               </ul>
               <a className="pricing-cta" href="/portfolio/studio/contact">
-                이 플랜으로 문의하기
+                {content.contact.headline}
               </a>
             </article>
           ))}

@@ -45,6 +45,7 @@ export function ContactInquiryManager({
   const [planQuery, setPlanQuery] = useState("전체");
   const [activeId, setActiveId] = useState<string | null>(null);
   const [isSettingsOpen, setIsSettingsOpen] = useState(false);
+  const [activeAttachment, setActiveAttachment] = useState<string | null>(null);
 
   const filtered = useMemo(() => {
     return inquiries.filter((inquiry) => {
@@ -260,8 +261,43 @@ export function ContactInquiryManager({
               <article className="mini-card">
                 <span>문의 내용</span>
                 <p className="contact-inquiry-message">{activeInquiry.message}</p>
+                {activeInquiry.attachments.length ? (
+                  <div className="contact-inquiry-attachments">
+                    {activeInquiry.attachments.map((attachment, index) => (
+                      <button
+                        className="contact-inquiry-attachment-button button-reset"
+                        key={`${attachment.slice(0, 32)}-${index}`}
+                        onClick={() => setActiveAttachment(attachment)}
+                        type="button"
+                      >
+                        <img alt={`문의 첨부 이미지 ${index + 1}`} src={attachment} />
+                      </button>
+                    ))}
+                  </div>
+                ) : null}
               </article>
             </div>
+          </div>
+        </div>
+      ) : null}
+
+      {activeAttachment ? (
+        <div className="portfolio-modal-backdrop" onClick={() => setActiveAttachment(null)} role="presentation">
+          <div
+            aria-modal="true"
+            className="contact-image-lightbox"
+            onClick={(event) => event.stopPropagation()}
+            role="dialog"
+          >
+            <button
+              aria-label="첨부 이미지 닫기"
+              className="portfolio-modal-close button-reset contact-image-lightbox-close"
+              onClick={() => setActiveAttachment(null)}
+              type="button"
+            >
+              <span aria-hidden="true">×</span>
+            </button>
+            <img alt="문의 첨부 이미지 크게 보기" src={activeAttachment} />
           </div>
         </div>
       ) : null}

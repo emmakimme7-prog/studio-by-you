@@ -25,20 +25,25 @@ export default async function PricingPage() {
       <SiteHeader compact logoSrc={content.brand.logo} />
 
       <section className="pricing-shell">
-        <div className="pricing-hero">
+        <div className="pricing-hero reveal-on-load">
           <h1>필요한 서비스와 요금을 확인하세요.</h1>
           <span>{content.pricing.description}</span>
         </div>
 
         {content.pricing.promo.enabled ? (
-          <div className="pricing-promo">
+          <div className="pricing-promo" data-reveal>
             <span>{content.pricing.promo.message}</span>
           </div>
         ) : null}
 
         <div className="pricing-grid">
-          {content.pricing.plans.map((plan) => (
-            <article className={`pricing-card${plan.featured ? " is-featured" : ""}`} key={plan.name}>
+          {content.pricing.plans.map((plan, index) => (
+            <article
+              className={`pricing-card${plan.featured ? " is-featured" : ""}`}
+              data-reveal="scale"
+              data-delay={String(index)}
+              key={plan.name}
+            >
               <div className="pricing-card-head">
                 <p>{plan.name}</p>
                 <strong>{plan.price}</strong>

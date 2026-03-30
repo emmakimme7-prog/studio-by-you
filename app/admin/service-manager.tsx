@@ -15,10 +15,10 @@ function emptyService(): EditableService {
     id: makeId(),
     title: "",
     description: "",
-    image: "/home-assets/process-1.png",
+    image: "",
     link: "",
     badge: "",
-    pricing: "무료",
+    pricing: "",
     pricingDetail: "",
   };
 }
@@ -31,6 +31,7 @@ export function ServiceManager({ services, isActive }: Props) {
   );
   const [openId, setOpenId] = useState<string | null>(items[0]?.id ?? null);
   const [draggingId, setDraggingId] = useState<string | null>(null);
+  const [selectedFiles, setSelectedFiles] = useState<Record<string, string>>({});
 
   const payload = useMemo(
     () =>
@@ -90,11 +91,11 @@ export function ServiceManager({ services, isActive }: Props) {
 
       <div className="faq-manager-topbar">
         <div className="faq-manager-summary">
-          <strong>서비스 {items.length}개</strong>
+          <strong>솔루션 {items.length}개</strong>
         </div>
         <div className="faq-manager-actions">
           <button className="secondary-link button-reset" onClick={addService} type="button">
-            서비스 추가
+            솔루션 추가
           </button>
         </div>
       </div>
@@ -121,16 +122,16 @@ export function ServiceManager({ services, isActive }: Props) {
               <span aria-hidden="true" className="drag-handle">
                 <img alt="" src="/home-assets/move.svg" />
               </span>
-              <strong>서비스 {index + 1}</strong>
+              <strong>솔루션 {index + 1}</strong>
               {item.badge ? <span className="service-admin-badge">{item.badge}</span> : null}
-              <span>{item.title || "서비스 이름을 입력하세요."}</span>
+              <span>{item.title || "솔루션 이름을 입력하세요."}</span>
               <span className="service-admin-price">{item.pricing || "-"}</span>
             </summary>
 
             <div className="faq-admin-accordion-body service-admin-body">
               <div className="service-admin-image-row">
                 <div className="upload-preview upload-preview-compact">
-                  <img alt={item.title} src={item.image} />
+                  {item.image ? <img alt={item.title || "솔루션 이미지"} src={item.image} /> : <span>이미지 없음</span>}
                 </div>
                 <input
                   accept="image/*"
@@ -139,7 +140,7 @@ export function ServiceManager({ services, isActive }: Props) {
                   onChange={async (e) => {
                     const file = e.target.files?.[0];
                     if (!file) return;
-                    e.target.value = "";
+                    setSelectedFiles((current) => ({ ...current, [item.id]: file.name }));
                     try {
                       const url = await uploadImageFile(file);
                       updateImage(item.id, url);
@@ -148,10 +149,11 @@ export function ServiceManager({ services, isActive }: Props) {
                     }
                   }}
                 />
+                <span className="file-input-name">{selectedFiles[item.id] || "선택된 파일 없음"}</span>
               </div>
 
               <label className="full-width">
-                <span>서비스 이름</span>
+                <span>솔루션 이름</span>
                 <input onChange={(e) => update(item.id, "title", e.target.value)} required value={item.title} />
               </label>
               <label className="full-width">
@@ -163,7 +165,7 @@ export function ServiceManager({ services, isActive }: Props) {
                 />
               </label>
               <label className="full-width">
-                <span>서비스 링크 (사용해보기 URL)</span>
+                <span>솔루션 링크 (사용해보기 URL)</span>
                 <input
                   onChange={(e) => update(item.id, "link", e.target.value)}
                   placeholder="https://..."
@@ -204,7 +206,7 @@ export function ServiceManager({ services, isActive }: Props) {
                   onClick={() => removeService(item.id)}
                   type="button"
                 >
-                  서비스 삭제
+                  솔루션 삭제
                 </button>
               </div>
             </div>

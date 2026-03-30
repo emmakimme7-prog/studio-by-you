@@ -8,6 +8,7 @@ import { PricingManager } from "@/app/admin/pricing-manager";
 import { ProcessManager } from "@/app/admin/process-manager";
 import { ServiceManager } from "@/app/admin/service-manager";
 import { compressClientImage } from "@/lib/client-image";
+import { isVideoSrc, uploadMediaFile } from "@/lib/client-upload";
 import type { SiteContent } from "@/lib/site-content";
 
 function parseDemoSection(formData: FormData, content: SiteContent, brandLogoOverride?: string): SiteContent {
@@ -25,6 +26,16 @@ function parseDemoSection(formData: FormData, content: SiteContent, brandLogoOve
           ...content.hero,
           title: String(formData.get("heroTitle") || ""),
           description: String(formData.get("heroDescription") || ""),
+          media: String(formData.get("heroMedia") || content.hero.media || ""),
+          mediaPositionX: Number(String(formData.get("heroMediaPositionX") || content.hero.mediaPositionX || 50)),
+          mediaPositionY: Number(String(formData.get("heroMediaPositionY") || content.hero.mediaPositionY || 50)),
+          mediaScale: Number(String(formData.get("heroMediaScale") || content.hero.mediaScale || 100)),
+          taglineFontSize: Number(String(formData.get("heroTaglineFontSize") || content.hero.taglineFontSize || 14)),
+          taglineFontWeight: String(formData.get("heroTaglineFontWeight") || content.hero.taglineFontWeight || "700"),
+          titleFontSize: Number(String(formData.get("heroTitleFontSize") || content.hero.titleFontSize || 62)),
+          titleFontWeight: String(formData.get("heroTitleFontWeight") || content.hero.titleFontWeight || "700"),
+          descriptionFontSize: Number(String(formData.get("heroDescriptionFontSize") || content.hero.descriptionFontSize || 15)),
+          descriptionFontWeight: String(formData.get("heroDescriptionFontWeight") || content.hero.descriptionFontWeight || "500"),
         },
       };
     case "portfolio": {
@@ -94,7 +105,7 @@ type DemoAdminProps = {
 const tabs = [
   { id: "brand", label: "기본 정보" },
   { id: "portfolio", label: "포트폴리오" },
-  { id: "services", label: "서비스" },
+  { id: "services", label: "솔루션" },
   { id: "process", label: "진행 방식" },
   { id: "pricing", label: "요금" },
   { id: "faq", label: "FAQ" },
@@ -102,11 +113,17 @@ const tabs = [
 ] as const;
 
 type TabId = (typeof tabs)[number]["id"];
+const HERO_FONT_SIZES = [12, 14, 16, 18, 20, 24, 28, 32, 40, 48, 56, 64, 72] as const;
+const HERO_FONT_WEIGHTS = ["200", "300", "400", "500", "600", "700", "800"] as const;
 
 function ImagePreview({ alt, src }: { alt: string; src: string }) {
   return (
     <div className="upload-preview">
-      <img alt={alt} src={src} />
+      {isVideoSrc(src) ? (
+        <video autoPlay loop muted playsInline src={src} />
+      ) : (
+        <img alt={alt} src={src} />
+      )}
     </div>
   );
 }
@@ -117,14 +134,46 @@ export function DemoAdmin({ content, onSave }: DemoAdminProps) {
   const formRef = useRef<HTMLFormElement>(null);
   const [activeTab, setActiveTab] = useState<TabId>("brand");
   const [logoValue, setLogoValue] = useState(content.brand.logo);
+  const [heroMediaValue, setHeroMediaValue] = useState(content.hero.media || "/home-assets/0330.mov");
+  const [heroMediaPositionX, setHeroMediaPositionX] = useState(content.hero.mediaPositionX ?? 50);
+  const [heroMediaPositionY, setHeroMediaPositionY] = useState(content.hero.mediaPositionY ?? 50);
+  const [heroMediaScale, setHeroMediaScale] = useState(content.hero.mediaScale ?? 100);
+  const [heroTaglineFontSize, setHeroTaglineFontSize] = useState(content.hero.taglineFontSize ?? 14);
+  const [heroTaglineFontWeight, setHeroTaglineFontWeight] = useState(content.hero.taglineFontWeight ?? "700");
+  const [heroTitleFontSize, setHeroTitleFontSize] = useState(content.hero.titleFontSize ?? 62);
+  const [heroTitleFontWeight, setHeroTitleFontWeight] = useState(content.hero.titleFontWeight ?? "700");
+  const [heroDescriptionFontSize, setHeroDescriptionFontSize] = useState(content.hero.descriptionFontSize ?? 15);
+  const [heroDescriptionFontWeight, setHeroDescriptionFontWeight] = useState(content.hero.descriptionFontWeight ?? "500");
   const [isLogoProcessing, setIsLogoProcessing] = useState(false);
+  const [isHeroMediaProcessing, setIsHeroMediaProcessing] = useState(false);
   const [isPortfolioSettingsOpen, setIsPortfolioSettingsOpen] = useState(false);
   const [isProcessSettingsOpen, setIsProcessSettingsOpen] = useState(false);
   const [isPricingSettingsOpen, setIsPricingSettingsOpen] = useState(false);
+  const [toast, setToast] = useState<{ kind: "success" | "error"; message: string } | null>(null);
 
   useEffect(() => {
     setLogoValue(content.brand.logo);
   }, [content.brand.logo]);
+
+  useEffect(() => {
+    if (status?.success) {
+      setToast({ kind: "success", message: status.success });
+      return;
+    }
+
+    if (status?.error) {
+      setToast({ kind: "error", message: status.error });
+    }
+  }, [status]);
+
+  useEffect(() => {
+    if (!toast) {
+      return;
+    }
+
+    const timeout = window.setTimeout(() => setToast(null), 1800);
+    return () => window.clearTimeout(timeout);
+  }, [toast]);
 
   function handleSubmit(e: React.FormEvent<HTMLFormElement>) {
     e.preventDefault();
@@ -135,7 +184,7 @@ export function DemoAdmin({ content, onSave }: DemoAdminProps) {
       const updated = parseDemoSection(formData, content, activeTab === "brand" ? logoValue : undefined);
       onSave(updated);
       setLogoValue(updated.brand.logo);
-      setStatus({ success: "저장됐습니다. (브라우저에만 저장)" });
+      setStatus({ success: "저장됐습니다." });
     } catch {
       setStatus({ error: "저장 중 오류가 발생했습니다." });
     } finally {
@@ -144,7 +193,14 @@ export function DemoAdmin({ content, onSave }: DemoAdminProps) {
   }
 
   return (
-    <form ref={formRef} className="content-form" onSubmit={handleSubmit}>
+    <>
+      {toast ? (
+        <div className="floating-toast-overlay" role="status" aria-live="polite">
+          <div className={`floating-toast floating-toast-${toast.kind}`}>{toast.message}</div>
+        </div>
+      ) : null}
+
+      <form ref={formRef} className="content-form" onSubmit={handleSubmit}>
       <div className="admin-editor-layout">
         <aside className="editor-sidebar">
           <div className="editor-sidebar-head">
@@ -169,8 +225,6 @@ export function DemoAdmin({ content, onSave }: DemoAdminProps) {
         </aside>
 
         <div className="editor-main">
-          {status?.success ? <div className="editor-feedback success-text">{status.success}</div> : null}
-          {status?.error ? <div className="editor-feedback form-error">{status.error}</div> : null}
 
           <section className={`dashboard-panel editor-section${activeTab === "brand" ? " is-visible" : ""}`}>
             <div className="panel-heading">
@@ -214,25 +268,163 @@ export function DemoAdmin({ content, onSave }: DemoAdminProps) {
                 <span>태그라인</span>
                 <input name="brandTagline" defaultValue={content.brand.tagline} required />
               </label>
+              <label>
+                <span>태그라인 크기</span>
+                <select name="heroTaglineFontSize" onChange={(event) => setHeroTaglineFontSize(Number(event.target.value))} value={heroTaglineFontSize}>
+                  {HERO_FONT_SIZES.map((size) => (
+                    <option key={size} value={size}>{size}px</option>
+                  ))}
+                </select>
+              </label>
+              <label>
+                <span>태그라인 두께</span>
+                <select name="heroTaglineFontWeight" onChange={(event) => setHeroTaglineFontWeight(event.target.value)} value={heroTaglineFontWeight}>
+                  {HERO_FONT_WEIGHTS.map((weight) => (
+                    <option key={weight} value={weight}>{weight}</option>
+                  ))}
+                </select>
+              </label>
               <label className="full-width">
                 <span>메인 제목</span>
                 <textarea name="heroTitle" defaultValue={content.hero.title} rows={3} required />
+              </label>
+              <label>
+                <span>메인 제목 크기</span>
+                <select name="heroTitleFontSize" onChange={(event) => setHeroTitleFontSize(Number(event.target.value))} value={heroTitleFontSize}>
+                  {HERO_FONT_SIZES.map((size) => (
+                    <option key={size} value={size}>{size}px</option>
+                  ))}
+                </select>
+              </label>
+              <label>
+                <span>메인 제목 두께</span>
+                <select name="heroTitleFontWeight" onChange={(event) => setHeroTitleFontWeight(event.target.value)} value={heroTitleFontWeight}>
+                  {HERO_FONT_WEIGHTS.map((weight) => (
+                    <option key={weight} value={weight}>{weight}</option>
+                  ))}
+                </select>
               </label>
               <label className="full-width">
                 <span>메인 설명</span>
                 <textarea name="heroDescription" defaultValue={content.hero.description} rows={6} required />
               </label>
+              <label>
+                <span>설명 크기</span>
+                <select name="heroDescriptionFontSize" onChange={(event) => setHeroDescriptionFontSize(Number(event.target.value))} value={heroDescriptionFontSize}>
+                  {HERO_FONT_SIZES.map((size) => (
+                    <option key={size} value={size}>{size}px</option>
+                  ))}
+                </select>
+              </label>
+              <label>
+                <span>설명 두께</span>
+                <select name="heroDescriptionFontWeight" onChange={(event) => setHeroDescriptionFontWeight(event.target.value)} value={heroDescriptionFontWeight}>
+                  {HERO_FONT_WEIGHTS.map((weight) => (
+                    <option key={weight} value={weight}>{weight}</option>
+                  ))}
+                </select>
+              </label>
+              <div className="brand-logo-row full-width">
+                <div className="upload-copy">
+                  <strong>메인 히어로 미디어</strong>
+                  <span>이미지 또는 mp4/webm/mov</span>
+                </div>
+                <div className="brand-logo-upload-row">
+                  <div
+                    style={{
+                      width: "100%",
+                      minHeight: 180,
+                      borderRadius: 18,
+                      overflow: "hidden",
+                    }}
+                  >
+                    <div className="upload-preview">
+                      {isVideoSrc(heroMediaValue) ? (
+                        <video
+                          autoPlay
+                          loop
+                          muted
+                          playsInline
+                          src={heroMediaValue}
+                          style={{ objectPosition: `${heroMediaPositionX}% ${heroMediaPositionY}%` }}
+                        />
+                      ) : (
+                        <img alt="메인 히어로 미디어" src={heroMediaValue} style={{ objectPosition: `${heroMediaPositionX}% ${heroMediaPositionY}%` }} />
+                      )}
+                    </div>
+                  </div>
+                  <input name="heroMedia" type="hidden" value={heroMediaValue} />
+                  <input name="heroMediaPositionX" type="hidden" value={heroMediaPositionX} />
+                  <input name="heroMediaPositionY" type="hidden" value={heroMediaPositionY} />
+                  <input name="heroMediaScale" type="hidden" value={heroMediaScale} />
+                  <input
+                    accept="image/*,video/mp4,video/webm,video/quicktime"
+                    className="file-input"
+                    type="file"
+                    onChange={async (e) => {
+                      const file = e.target.files?.[0];
+                      if (!file) return;
+                      setIsHeroMediaProcessing(true);
+                      try {
+                        const url = file.type.startsWith("image/")
+                          ? await compressClientImage(file)
+                          : await uploadMediaFile(file);
+                        setHeroMediaValue(url);
+                        setStatus(undefined);
+                      } catch {
+                        setStatus({ error: "메인 미디어 처리 중 오류가 발생했습니다." });
+                      } finally {
+                        setIsHeroMediaProcessing(false);
+                      }
+                      e.target.value = "";
+                    }}
+                  />
+                </div>
+                <div className="hero-media-position-row">
+                  <label className="hero-media-control">
+                    <span>좌우 {heroMediaPositionX}%</span>
+                    <input
+                      max={100}
+                      min={0}
+                      onChange={(event) => setHeroMediaPositionX(Number(event.target.value))}
+                      type="range"
+                      value={heroMediaPositionX}
+                    />
+                  </label>
+                  <label className="hero-media-control">
+                    <span>상하 {heroMediaPositionY}%</span>
+                    <input
+                      max={100}
+                      min={0}
+                      onChange={(event) => setHeroMediaPositionY(Number(event.target.value))}
+                      type="range"
+                      value={heroMediaPositionY}
+                    />
+                  </label>
+                  <label className="hero-media-control">
+                    <span>확대 {heroMediaScale}%</span>
+                    <input
+                      max={180}
+                      min={80}
+                      onChange={(event) => setHeroMediaScale(Number(event.target.value))}
+                      type="range"
+                      value={heroMediaScale}
+                    />
+                  </label>
+                </div>
+                {isHeroMediaProcessing ? <p className="section-label">메인 미디어 처리 중...</p> : null}
+              </div>
             </div>
             <div className="section-actions">
               <button
                 className="primary-link button-reset"
-                disabled={pending || isLogoProcessing}
+                disabled={pending || isLogoProcessing || isHeroMediaProcessing}
                 formNoValidate
                 name="saveSection"
                 type="submit"
                 value="brand"
               >
-                {isLogoProcessing ? "로고 처리 중..." : pending && activeTab === "brand" ? "저장 중..." : "기본 정보 저장"}
+                {isLogoProcessing || isHeroMediaProcessing ? "미디어 처리 중..." : pending && activeTab === "brand" ? "저장 중..." : "기본 정보 저장"}
               </button>
             </div>
           </section>
@@ -277,7 +469,7 @@ export function DemoAdmin({ content, onSave }: DemoAdminProps) {
             <div className="panel-heading">
               <div>
                 <p className="section-label">Services</p>
-                <h3>운영 서비스 관리</h3>
+                <h3>운영 솔루션 관리</h3>
               </div>
             </div>
             <div className="editor-manager-body">
@@ -292,7 +484,7 @@ export function DemoAdmin({ content, onSave }: DemoAdminProps) {
                 type="submit"
                 value="services"
               >
-                {pending && activeTab === "services" ? "저장 중..." : "서비스 저장"}
+                {pending && activeTab === "services" ? "저장 중..." : "솔루션 저장"}
               </button>
             </div>
           </section>
@@ -525,6 +717,7 @@ export function DemoAdmin({ content, onSave }: DemoAdminProps) {
           </div>
         </div>
       </div>
-    </form>
+      </form>
+    </>
   );
 }

@@ -46,6 +46,64 @@ async function fileToDataUrl(file: File) {
   return `data:${mimeType};base64,${buffer.toString("base64")}`;
 }
 
+function revalidateSectionPaths(section: string, content: Awaited<ReturnType<typeof readSiteContent>>) {
+  revalidatePath("/admin", "layout");
+
+  if (section === "brand") {
+    revalidatePath("/", "layout");
+    revalidatePath("/studiobyyou", "layout");
+    revalidatePath("/portfolio/studio", "layout");
+    return;
+  }
+
+  if (section === "portfolio") {
+    revalidatePath("/", "layout");
+    revalidatePath("/portfolio", "layout");
+    revalidatePath("/portfolio/studio", "layout");
+    revalidatePath("/studiobyyou", "layout");
+    revalidatePath("/studiobyyou/portfolio", "layout");
+    content.projects.forEach((project) => revalidatePath(`/portfolio/${project.slug}`, "layout"));
+    return;
+  }
+
+  if (section === "services") {
+    revalidatePath("/services", "layout");
+    revalidatePath("/portfolio/studio/services", "layout");
+    return;
+  }
+
+  if (section === "process") {
+    revalidatePath("/", "layout");
+    revalidatePath("/portfolio/studio", "layout");
+    revalidatePath("/studiobyyou", "layout");
+    return;
+  }
+
+  if (section === "pricing") {
+    revalidatePath("/pricing", "layout");
+    revalidatePath("/studiobyyou/pricing", "layout");
+    revalidatePath("/portfolio/studio/pricing", "layout");
+    return;
+  }
+
+  if (section === "faq") {
+    revalidatePath("/faq", "layout");
+    revalidatePath("/studiobyyou/faq", "layout");
+    revalidatePath("/portfolio/studio/faq", "layout");
+    return;
+  }
+
+  if (section === "chat") {
+    revalidatePath("/", "layout");
+    return;
+  }
+
+  if (section === "contact") {
+    revalidatePath("/contact", "layout");
+    revalidatePath("/portfolio/studio/contact", "layout");
+  }
+}
+
 export async function loginAction(_: { error?: string } | undefined, formData: FormData) {
   const password = getField(formData, "password");
 
@@ -69,7 +127,6 @@ export async function updateContentAction(
   try {
     const content = await readSiteContent();
     const section = getField(formData, "saveSection");
-    console.log("[action] section:", section);
     let nextContent = content;
     let requiredValues: string[] = [];
 
@@ -90,6 +147,16 @@ export async function updateContentAction(
           ...content.hero,
           title: getField(formData, "heroTitle"),
           description: getField(formData, "heroDescription"),
+          media: getField(formData, "heroMedia") || content.hero.media || "",
+          mediaPositionX: Number(getField(formData, "heroMediaPositionX") || content.hero.mediaPositionX || 50),
+          mediaPositionY: Number(getField(formData, "heroMediaPositionY") || content.hero.mediaPositionY || 50),
+          mediaScale: Number(getField(formData, "heroMediaScale") || content.hero.mediaScale || 100),
+          taglineFontSize: Number(getField(formData, "heroTaglineFontSize") || content.hero.taglineFontSize || 14),
+          taglineFontWeight: getField(formData, "heroTaglineFontWeight") || content.hero.taglineFontWeight || "700",
+          titleFontSize: Number(getField(formData, "heroTitleFontSize") || content.hero.titleFontSize || 62),
+          titleFontWeight: getField(formData, "heroTitleFontWeight") || content.hero.titleFontWeight || "700",
+          descriptionFontSize: Number(getField(formData, "heroDescriptionFontSize") || content.hero.descriptionFontSize || 15),
+          descriptionFontWeight: getField(formData, "heroDescriptionFontWeight") || content.hero.descriptionFontWeight || "500",
         },
       };
 
@@ -97,7 +164,6 @@ export async function updateContentAction(
         nextContent.brand.tagline,
         nextContent.brand.logo,
         nextContent.hero.title,
-        nextContent.hero.description,
       ];
     }
 
@@ -351,25 +417,11 @@ export async function updateContentAction(
       return { error: "현재 탭의 필수 항목을 채워주세요." };
     }
 
-    console.log("[action] writing content for section:", section);
     await writeSiteContent(nextContent);
-    console.log("[action] write done, revalidating");
-    revalidatePath("/", "layout");
-    revalidatePath("/portfolio", "layout");
-    revalidatePath("/portfolio/studio", "layout");
-    revalidatePath("/services", "layout");
-    revalidatePath("/contact", "layout");
-    revalidatePath("/pricing", "layout");
-    revalidatePath("/faq", "layout");
-    revalidatePath("/admin", "layout");
-    revalidatePath("/studiobyyou", "layout");
-    nextContent.projects.forEach((project) => revalidatePath(`/portfolio/${project.slug}`, "layout"));
-
-    console.log("[action] done, returning success");
+    revalidateSectionPaths(section, nextContent);
     return { success: "현재 탭 내용이 저장되었습니다." };
   } catch (error) {
     const message = error instanceof Error ? error.message : "저장 중 오류가 발생했습니다.";
-    console.error("[action] caught error:", message);
     return { error: message };
   }
 }

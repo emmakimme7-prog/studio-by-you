@@ -1,13 +1,15 @@
 "use client";
 
+import type { CSSProperties } from "react";
 import { useEffect, useRef, useState } from "react";
 
 type LazyVideoProps = {
   src: string;
   className?: string;
+  style?: CSSProperties;
 };
 
-export function LazyVideo({ src, className }: LazyVideoProps) {
+export function LazyVideo({ src, className, style }: LazyVideoProps) {
   const ref = useRef<HTMLVideoElement>(null);
   const [activeSrc, setActiveSrc] = useState<string | null>(null);
 
@@ -39,6 +41,7 @@ export function LazyVideo({ src, className }: LazyVideoProps) {
       playsInline
       preload="none"
       src={activeSrc ?? undefined}
+      style={style}
     />
   );
 }

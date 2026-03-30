@@ -84,6 +84,14 @@
     return { totalVotes, results };
   }
 
+  function sortByCreatedAtDesc(items) {
+    return [...items].sort((a, b) => {
+      const aTime = new Date(a.createdAt || 0).getTime();
+      const bTime = new Date(b.createdAt || 0).getTime();
+      return bTime - aTime;
+    });
+  }
+
   // ──────────────────────────────────────────────
   // Seed default data if DB is empty
   // ──────────────────────────────────────────────
@@ -541,7 +549,8 @@
             studentNumber: String(student.number || ""),
             voteCount: db.votes.filter((vote) => vote.studentId === student.id).length,
           }));
-        const elections = db.elections
+        const elections = sortByCreatedAtDesc(
+          db.elections
           .filter((e) => e.schoolId === user.schoolId)
           .map((election) => {
             const { totalVotes, results } = buildElectionResults(db, election);
@@ -550,7 +559,8 @@
               totalVotes,
               results,
             };
-          });
+          })
+        );
         const studentCount = students.length;
         const voteCount = db.votes.filter((vote) => vote.schoolId === user.schoolId).length;
         return ok({
@@ -800,7 +810,8 @@
         const myVoteIds = new Set(
           db.votes.filter((v) => v.studentId === user.id).map((v) => v.electionId)
         );
-        const elections = db.elections
+        const elections = sortByCreatedAtDesc(
+          db.elections
           .filter((e) => e.schoolId === user.schoolId)
           .map((e) => {
             const hasVoted = myVoteIds.has(e.id);
@@ -822,7 +833,8 @@
                   }
                 : null,
             };
-          });
+          })
+        );
         return ok({
           school,
           elections,

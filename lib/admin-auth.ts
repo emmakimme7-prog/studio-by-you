@@ -4,6 +4,10 @@ import { cookies } from "next/headers";
 const ADMIN_COOKIE = "studio_admin_session";
 const DEFAULT_PASSWORD = "change-me-please";
 
+function isLocalDev() {
+  return process.env.NODE_ENV !== "production";
+}
+
 function getAdminPassword() {
   return process.env.ADMIN_PASSWORD || DEFAULT_PASSWORD;
 }
@@ -13,6 +17,10 @@ function hashValue(value: string) {
 }
 
 export async function isAuthenticated() {
+  if (isLocalDev()) {
+    return true;
+  }
+
   const cookieStore = await cookies();
   const sessionValue = cookieStore.get(ADMIN_COOKIE)?.value;
 
@@ -27,6 +35,10 @@ export async function isAuthenticated() {
 }
 
 export async function createAdminSession() {
+  if (isLocalDev()) {
+    return;
+  }
+
   const cookieStore = await cookies();
   cookieStore.set(ADMIN_COOKIE, hashValue(getAdminPassword()), {
     httpOnly: true,
@@ -38,14 +50,26 @@ export async function createAdminSession() {
 }
 
 export async function clearAdminSession() {
+  if (isLocalDev()) {
+    return;
+  }
+
   const cookieStore = await cookies();
   cookieStore.delete(ADMIN_COOKIE);
 }
 
 export function verifyPassword(input: string) {
+  if (isLocalDev()) {
+    return true;
+  }
+
   return input === getAdminPassword();
 }
 
 export function getDefaultPasswordNotice() {
+  if (isLocalDev()) {
+    return null;
+  }
+
   return process.env.ADMIN_PASSWORD ? null : DEFAULT_PASSWORD;
 }

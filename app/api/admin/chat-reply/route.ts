@@ -12,16 +12,18 @@ export async function POST(request: Request) {
     const body = (await request.json()) as {
       conversationId?: string;
       message?: string;
+      imageDataUrl?: string;
     };
 
     const conversationId = String(body.conversationId || "").trim();
     const message = String(body.message || "").trim();
+    const imageDataUrl = typeof body.imageDataUrl === "string" ? body.imageDataUrl.trim() : "";
 
-    if (!conversationId || !message) {
-      return NextResponse.json({ message: "답장 내용을 입력해주세요." }, { status: 400 });
+    if (!conversationId || (!message && !imageDataUrl)) {
+      return NextResponse.json({ message: "답장 내용 또는 이미지를 입력해주세요." }, { status: 400 });
     }
 
-    const conversation = await appendAdminReply({ conversationId, message });
+    const conversation = await appendAdminReply({ conversationId, message, imageDataUrl: imageDataUrl || undefined });
 
     revalidatePath("/admin");
     revalidatePath("/");

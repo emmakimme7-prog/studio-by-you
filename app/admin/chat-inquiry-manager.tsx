@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { ChangeEvent, useEffect, useMemo, useRef, useState } from "react";
 import type { ChatConversation } from "@/lib/chat-inbox";
 
 type ChatInquiryManagerProps = {
@@ -43,8 +43,14 @@ export function ChatInquiryManager({ inquiries }: ChatInquiryManagerProps) {
   const [intentQuery, setIntentQuery] = useState("전체");
   const [activeId, setActiveId] = useState<string | null>(null);
   const [replyText, setReplyText] = useState("");
+  const [threadQuery, setThreadQuery] = useState("");
+  const [pendingReplyImage, setPendingReplyImage] = useState<{ name: string; url: string } | null>(null);
   const [isReplying, setIsReplying] = useState(false);
+  const [isUploadingReplyImage, setIsUploadingReplyImage] = useState(false);
   const [replyFeedback, setReplyFeedback] = useState("");
+  const [expandedImageUrl, setExpandedImageUrl] = useState("");
+  const threadRef = useRef<HTMLDivElement | null>(null);
+  const replyFileInputRef = useRef<HTMLInputElement | null>(null);
 
   useEffect(() => {
     setConversations(inquiries);
@@ -57,10 +63,10 @@ export function ChatInquiryManager({ inquiries }: ChatInquiryManagerProps) {
 
   const filtered = useMemo(() => {
     return conversations.filter((conversation) => {
-      const lastMessage = conversation.messages[conversation.messages.length - 1]?.text || "";
+      const conversationText = conversation.messages.map((item) => item.text).join(" ").toLowerCase();
       const matchesName = !nameQuery.trim() || conversation.name.toLowerCase().includes(nameQuery.trim().toLowerCase());
       const matchesPhone = !phoneQuery.trim() || conversation.phone.toLowerCase().includes(phoneQuery.trim().toLowerCase());
-      const matchesMessage = !messageQuery.trim() || lastMessage.toLowerCase().includes(messageQuery.trim().toLowerCase());
+      const matchesMessage = !messageQuery.trim() || conversationText.includes(messageQuery.trim().toLowerCase());
       const matchesIntent = intentQuery === "전체" || conversation.intent === intentQuery;
 
       return matchesName && matchesPhone && matchesMessage && matchesIntent;
@@ -75,13 +81,88 @@ export function ChatInquiryManager({ inquiries }: ChatInquiryManagerProps) {
   useEffect(() => {
     if (!activeConversation) {
       setReplyText("");
+      setThreadQuery("");
+      setPendingReplyImage(null);
       setReplyFeedback("");
     }
   }, [activeConversation?.id]);
 
+  const visibleMessages = useMemo(() => {
+    if (!activeConversation) {
+      return [];
+    }
+
+    const query = threadQuery.trim().toLowerCase();
+
+    if (!query) {
+      return activeConversation.messages;
+    }
+
+    return activeConversation.messages.filter((item) => item.text.toLowerCase().includes(query));
+  }, [activeConversation, threadQuery]);
+
+  useEffect(() => {
+    if (!activeConversation || !threadRef.current) {
+      return;
+    }
+
+    const frame = requestAnimationFrame(() => {
+      const element = threadRef.current;
+
+      if (!element) {
+        return;
+      }
+
+      element.scrollTop = element.scrollHeight;
+    });
+
+    return () => cancelAnimationFrame(frame);
+  }, [activeConversation?.id, activeConversation?.updatedAt, visibleMessages.length]);
+
+  async function handleReplyImageChange(event: ChangeEvent<HTMLInputElement>) {
+    const file = event.target.files?.[0];
+    event.target.value = "";
+
+    if (!file) {
+      return;
+    }
+
+    if (!file.type.startsWith("image/")) {
+      setReplyFeedback("이미지 파일만 첨부할 수 있습니다.");
+      return;
+    }
+
+    try {
+      setIsUploadingReplyImage(true);
+      setReplyFeedback("");
+      const formData = new FormData();
+      formData.append("file", file);
+
+      const response = await fetch("/api/admin/upload", {
+        method: "POST",
+        body: formData,
+      });
+
+      const result = (await response.json().catch(() => ({}))) as { url?: string; error?: string };
+
+      if (!response.ok || !result.url) {
+        throw new Error(result.error || "이미지 업로드에 실패했습니다.");
+      }
+
+      setPendingReplyImage({
+        name: file.name || "image",
+        url: result.url,
+      });
+    } catch (error) {
+      setReplyFeedback(error instanceof Error ? error.message : "이미지 업로드 중 문제가 발생했습니다.");
+    } finally {
+      setIsUploadingReplyImage(false);
+    }
+  }
+
   async function handleReply() {
-    if (!activeConversation || !replyText.trim()) {
-      setReplyFeedback("답장 내용을 입력해주세요.");
+    if (!activeConversation || (!replyText.trim() && !pendingReplyImage?.url)) {
+      setReplyFeedback("답장 내용 또는 이미지를 입력해주세요.");
       return;
     }
 
@@ -97,6 +178,7 @@ export function ChatInquiryManager({ inquiries }: ChatInquiryManagerProps) {
         body: JSON.stringify({
           conversationId: activeConversation.id,
           message: replyText,
+          imageDataUrl: pendingReplyImage?.url,
         }),
       });
 
@@ -112,6 +194,7 @@ export function ChatInquiryManager({ inquiries }: ChatInquiryManagerProps) {
       setConversations((current) => [result.conversation!, ...current.filter((item) => item.id !== result.conversation!.id)]);
       setActiveId(result.conversation.id);
       setReplyText("");
+      setPendingReplyImage(null);
       setReplyFeedback(result.message || "답장을 보냈습니다.");
     } catch (error) {
       setReplyFeedback(error instanceof Error ? error.message : "답장 저장 중 문제가 발생했습니다.");
@@ -140,8 +223,8 @@ export function ChatInquiryManager({ inquiries }: ChatInquiryManagerProps) {
             <input onChange={(event) => setPhoneQuery(event.target.value)} placeholder="연락처 검색" type="search" value={phoneQuery} />
           </label>
           <label>
-            <span>최근 메시지</span>
-            <input onChange={(event) => setMessageQuery(event.target.value)} placeholder="메시지 검색" type="search" value={messageQuery} />
+            <span>채팅 내용</span>
+            <input onChange={(event) => setMessageQuery(event.target.value)} placeholder="채팅 내용 검색" type="search" value={messageQuery} />
           </label>
           <label>
             <span>주제</span>
@@ -163,10 +246,10 @@ export function ChatInquiryManager({ inquiries }: ChatInquiryManagerProps) {
               <thead>
                 <tr>
                   <th>번호</th>
+                  <th>상태</th>
                   <th>이름</th>
                   <th>연락처</th>
                   <th>주제</th>
-                  <th>상태</th>
                   <th>최근 메시지</th>
                   <th>업데이트</th>
                 </tr>
@@ -174,14 +257,19 @@ export function ChatInquiryManager({ inquiries }: ChatInquiryManagerProps) {
               <tbody>
                 {filtered.map((conversation, index) => {
                   const lastMessage = conversation.messages[conversation.messages.length - 1];
+                  const lastMessagePreview = lastMessage?.text || (lastMessage?.imageDataUrl ? "이미지" : "-");
                   return (
                     <tr className="admin-table-row-clickable" key={conversation.id} onClick={() => setActiveId(conversation.id)}>
                       <td>{index + 1}</td>
+                      <td className="inquiry-table-status-cell">
+                        <span className={`admin-chat-status-badge ${getStatusClassName(conversation.status)}`}>
+                          {getStatusLabel(conversation.status)}
+                        </span>
+                      </td>
                       <td>{conversation.name}</td>
                       <td>{conversation.phone}</td>
                       <td>{conversation.intent}</td>
-                      <td>{getStatusLabel(conversation.status)}</td>
-                      <td className="inquiry-table-message">{lastMessage?.text || "-"}</td>
+                      <td className="inquiry-table-message">{lastMessagePreview}</td>
                       <td>{formatDate(conversation.updatedAt)}</td>
                     </tr>
                   );
@@ -228,10 +316,6 @@ export function ChatInquiryManager({ inquiries }: ChatInquiryManagerProps) {
                     <span className="site-chat-summary-label">문의 유형</span>
                     <strong>{activeConversation.intent}</strong>
                   </div>
-                  <div className="site-chat-summary-item">
-                    <span className="site-chat-summary-label">유입 경로</span>
-                    <strong>홈 채팅 위젯</strong>
-                  </div>
                 </div>
               </article>
 
@@ -240,8 +324,15 @@ export function ChatInquiryManager({ inquiries }: ChatInquiryManagerProps) {
                   <span>대화 내역</span>
                   <strong>{formatDate(activeConversation.updatedAt)}</strong>
                 </div>
-                <div className="site-chat-thread admin-chat-thread">
-                  {activeConversation.messages.map((item) => (
+                <input
+                  className="site-chat-input admin-chat-search-input"
+                  onChange={(event) => setThreadQuery(event.target.value)}
+                  placeholder="채팅 내용 검색"
+                  type="search"
+                  value={threadQuery}
+                />
+                <div className="site-chat-thread admin-chat-thread" ref={threadRef}>
+                  {visibleMessages.length ? visibleMessages.map((item) => (
                     <div
                       className={`site-chat-bubble ${item.sender === "admin" ? "site-chat-bubble-agent" : "site-chat-bubble-user"}`}
                       key={item.id}
@@ -250,13 +341,17 @@ export function ChatInquiryManager({ inquiries }: ChatInquiryManagerProps) {
                         {item.sender === "admin" ? "관리자" : activeConversation.name} · {formatDate(item.createdAt)}
                       </span>
                       {item.imageDataUrl ? (
-                        <a className="site-chat-image-link" href={item.imageDataUrl} rel="noreferrer" target="_blank">
+                        <button
+                          className="site-chat-image-link button-reset"
+                          onClick={() => setExpandedImageUrl(item.imageDataUrl || "")}
+                          type="button"
+                        >
                           <img alt="첨부 이미지" className="site-chat-image" src={item.imageDataUrl} />
-                        </a>
+                        </button>
                       ) : null}
                       {item.text ? <span>{item.text}</span> : null}
                     </div>
-                  ))}
+                  )) : <p className="faq-empty-state admin-chat-search-empty">검색된 메시지가 없습니다.</p>}
                 </div>
               </article>
 
@@ -264,6 +359,28 @@ export function ChatInquiryManager({ inquiries }: ChatInquiryManagerProps) {
                 <div className="admin-chat-section-head">
                   <span>답장 보내기</span>
                 </div>
+                {pendingReplyImage ? (
+                  <div className="site-chat-upload-pill admin-chat-upload-pill">
+                    <a className="site-chat-upload-pill-name" href={pendingReplyImage.url} rel="noreferrer" target="_blank">
+                      {pendingReplyImage.name}
+                    </a>
+                    <button
+                      aria-label="첨부 이미지 제거"
+                      className="site-chat-upload-pill-remove button-reset"
+                      onClick={() => setPendingReplyImage(null)}
+                      type="button"
+                    >
+                      ×
+                    </button>
+                  </div>
+                ) : null}
+                <input
+                  accept="image/*"
+                  className="site-chat-file-input"
+                  onChange={handleReplyImageChange}
+                  ref={replyFileInputRef}
+                  type="file"
+                />
                 <textarea
                   className="site-chat-textarea"
                   onChange={(event) => setReplyText(event.target.value)}
@@ -271,12 +388,37 @@ export function ChatInquiryManager({ inquiries }: ChatInquiryManagerProps) {
                   rows={4}
                   value={replyText}
                 />
+                <div className="admin-chat-reply-actions">
+                  <button
+                    className="site-chat-upload-pill button-reset admin-chat-attach-button"
+                    onClick={() => replyFileInputRef.current?.click()}
+                    type="button"
+                  >
+                    {isUploadingReplyImage ? "업로드 중..." : "이미지 첨부"}
+                  </button>
+                </div>
                 {replyFeedback ? <p className={`site-chat-feedback ${replyFeedback.includes("실패") || replyFeedback.includes("입력") ? "is-error" : "is-success"}`}>{replyFeedback}</p> : null}
-                <button className="site-chat-primary" disabled={isReplying} onClick={handleReply} type="button">
+                <button className="site-chat-primary" disabled={isReplying || isUploadingReplyImage} onClick={handleReply} type="button">
                   {isReplying ? "보내는 중..." : "답장 보내기"}
                 </button>
               </article>
             </div>
+          </div>
+        </div>
+      ) : null}
+
+      {expandedImageUrl ? (
+        <div className="site-chat-policy-backdrop is-open site-chat-image-backdrop" onClick={() => setExpandedImageUrl("")} role="presentation">
+          <div aria-modal="true" className="site-chat-image-modal" onClick={(event) => event.stopPropagation()} role="dialog">
+            <button
+              aria-label="이미지 닫기"
+              className="site-chat-close site-chat-image-close"
+              onClick={() => setExpandedImageUrl("")}
+              type="button"
+            >
+              ×
+            </button>
+            <img alt="확대 이미지" className="site-chat-image-preview" src={expandedImageUrl} />
           </div>
         </div>
       ) : null}

@@ -50,7 +50,7 @@ export function FaqClient({ description, groups, title }: FaqClientProps) {
 
   return (
     <section className="faq-shell">
-      <div className="faq-hero">
+      <div className="faq-hero reveal-on-load">
         <h1>{title}</h1>
         <span>{description}</span>
         <div className="faq-search">
@@ -80,35 +80,39 @@ export function FaqClient({ description, groups, title }: FaqClientProps) {
       </div>
 
       <div className="faq-group-stack faq-group-stack-centered">
-        {visibleGroups.length ? (
-          visibleGroups.map((group) => (
-            <section className="faq-group" key={group.title}>
-              <h2>{group.title}</h2>
+        <div key={`${activeGroup}-${query}`} className="faq-content-anim">
+          {visibleGroups.length ? (
+            visibleGroups.map((group) => (
+              <section className="faq-group" key={group.title}>
+                <h2>{group.title}</h2>
+                <div className="faq-item-stack">
+                  {group.items.map((item) => (
+                    <details className="faq-item" key={item.question}>
+                      <summary>
+                        <span>{item.question}</span>
+                        <span aria-hidden="true" className="faq-item-icon">+</span>
+                      </summary>
+                      <div className="faq-item-body">
+                        <div className="faq-item-body-inner">
+                          <p>{item.answer}</p>
+                        </div>
+                      </div>
+                    </details>
+                  ))}
+                </div>
+              </section>
+            ))
+          ) : (
+            <section className="faq-group">
+              <h2>검색 결과가 없어요.</h2>
               <div className="faq-item-stack">
-                {group.items.map((item) => (
-                  <details className="faq-item" key={item.question}>
-                    <summary>
-                      <span>{item.question}</span>
-                      <span aria-hidden="true" className="faq-item-icon">
-                        +
-                      </span>
-                    </summary>
-                    <p>{item.answer}</p>
-                  </details>
-                ))}
+                <div className="faq-empty-state">
+                  다른 키워드로 검색하거나, 문의하기 페이지에서 직접 상담을 남겨주세요.
+                </div>
               </div>
             </section>
-          ))
-        ) : (
-          <section className="faq-group">
-            <h2>검색 결과가 없어요.</h2>
-            <div className="faq-item-stack">
-              <div className="faq-empty-state">
-                다른 키워드로 검색하거나, 문의하기 페이지에서 직접 상담을 남겨주세요.
-              </div>
-            </div>
-          </section>
-        )}
+          )}
+        </div>
       </div>
     </section>
   );

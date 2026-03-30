@@ -253,9 +253,10 @@ export async function appendUserMessage(input: {
   return conversation;
 }
 
-export async function appendAdminReply(input: { conversationId: string; message: string }) {
+export async function appendAdminReply(input: { conversationId: string; message?: string; imageDataUrl?: string }) {
   const conversations = await readChatConversations();
   const now = new Date().toISOString();
+  const message = typeof input.message === "string" ? input.message : "";
 
   const next = conversations.map((conversation) => {
     if (conversation.id !== input.conversationId) {
@@ -271,7 +272,8 @@ export async function appendAdminReply(input: { conversationId: string; message:
         {
           id: randomUUID(),
           sender: "admin" as const,
-          text: input.message,
+          text: message,
+          imageDataUrl: input.imageDataUrl,
           createdAt: now,
         },
       ],
@@ -294,6 +296,7 @@ export async function updateConversationContact(input: {
   phone: string;
 }) {
   const conversations = await readChatConversations();
+  const now = new Date().toISOString();
 
   const next = conversations.map((conversation) => {
     if (conversation.id !== input.conversationId) {
@@ -302,6 +305,7 @@ export async function updateConversationContact(input: {
 
     return {
       ...conversation,
+      updatedAt: now,
       name: input.name,
       phone: input.phone,
     };

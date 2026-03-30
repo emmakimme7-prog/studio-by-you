@@ -6,6 +6,8 @@ import Image from "next/image";
 import { SiteHeader } from "@/components/site-header";
 import { readSiteContent } from "@/lib/site-content";
 import { HomePortfolioGrid } from "@/app/home-portfolio-grid";
+import { isVideoSrc } from "@/lib/client-upload";
+import { LazyVideo } from "@/components/lazy-video";
 
 export const metadata: Metadata = {
   alternates: { canonical: "https://www.studiobyyou.kr" },
@@ -13,26 +15,42 @@ export const metadata: Metadata = {
 
 export default async function HomePage() {
   const content = await readSiteContent();
+  const heroObjectPosition = `${content.hero.mediaPositionX ?? 50}% ${content.hero.mediaPositionY ?? 50}%`;
+  const heroScale = content.hero.mediaScale ?? 100;
+  const heroTaglineStyle = { fontSize: `${content.hero.taglineFontSize ?? 14}px`, fontWeight: content.hero.taglineFontWeight ?? "700" };
+  const heroTitleStyle = { fontSize: `${content.hero.titleFontSize ?? 62}px`, fontWeight: content.hero.titleFontWeight ?? "700" };
+  const heroDescriptionStyle = { fontSize: `${content.hero.descriptionFontSize ?? 15}px`, fontWeight: content.hero.descriptionFontWeight ?? "500" };
 
   return (
     <>
       <section className="hero-band">
-        <Image
-          alt="메인 배경"
-          className="reference-hero-image"
-          fill
-          priority
-          sizes="100vw"
-          src="/home-assets/hero-bg-optimized.jpg"
-        />
+        {isVideoSrc(content.hero.media || "") ? (
+          <LazyVideo
+            className="reference-hero-image"
+            src={content.hero.media || ""}
+            style={{ objectPosition: heroObjectPosition, transform: `scale(${heroScale / 100})` }}
+          />
+        ) : (
+          <Image
+            alt="메인 배경"
+            className="reference-hero-image"
+            fill
+            priority
+            sizes="100vw"
+            src={content.hero.media || "/home-assets/hero-bg-optimized.jpg"}
+            style={{ objectPosition: heroObjectPosition, transform: `scale(${heroScale / 100})` }}
+          />
+        )}
         <div className="hero-image-overlay" />
         <div className="hero-band-inner">
           <SiteHeader logoSrc={content.brand.logo} />
 
-          <div className="reference-hero-copy">
-            <p>{content.brand.tagline}</p>
-            <h1>{content.hero.title}</h1>
-            <span className="pre-line-copy">{content.hero.description}</span>
+          <div className={`reference-hero-copy${content.hero.description?.trim() ? "" : " is-description-empty"}`}>
+            <p style={heroTaglineStyle}>{content.brand.tagline}</p>
+            <h1 style={heroTitleStyle}>{content.hero.title}</h1>
+            {content.hero.description?.trim() ? (
+              <span className="pre-line-copy" style={heroDescriptionStyle}>{content.hero.description}</span>
+            ) : null}
           </div>
         </div>
       </section>
@@ -40,8 +58,7 @@ export default async function HomePage() {
       <main className="landing-shell">
         <section className="white-panel" id="portfolio">
           <div className="white-panel-content">
-            <div className="panel-heading-reference">
-              <div className="panel-heading-kicker">이런 작업들을 했어요.</div>
+            <div className="panel-heading-reference" data-reveal>
               <p>대표 포트폴리오</p>
             </div>
 
@@ -55,13 +72,17 @@ export default async function HomePage() {
         </section>
 
         <section className="process-section" id="process">
-          <div className="panel-heading-reference process-heading">
-            <div className="panel-heading-kicker">이렇게 진행돼요.</div>
-            <p>상담부터 오픈까지, 흐름이 끊기지 않게 함께 진행합니다.</p>
+          <div className="panel-heading-reference process-heading" data-reveal>
+            <p className="pre-line-copy">{content.processTitle}</p>
           </div>
           <div className="process-card-grid">
             {content.processSteps.map((item, index) => (
-              <article className="process-visual-card process-visual-card-reference" key={item.title + index}>
+              <article
+                className="process-visual-card process-visual-card-reference"
+                data-reveal="scale"
+                data-delay={String(index % 3)}
+                key={item.title + index}
+              >
                 <div className="process-number">{index + 1}</div>
                 <div className="process-visual process-visual-plain">
                   <Image

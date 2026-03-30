@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
 import "./globals.css";
 import { SiteChatWidget } from "./site-chat-widget";
+import { ScrollRevealInit } from "@/components/scroll-reveal-init";
 import { readSiteContent } from "@/lib/site-content";
 
 const siteUrl = "https://www.studiobyyou.kr";
@@ -99,6 +100,7 @@ export default async function RootLayout({
           dangerouslySetInnerHTML={{ __html: JSON.stringify(jsonLd) }}
           type="application/ld+json"
         />
+        <ScrollRevealInit />
         {children}
         <SiteChatWidget config={content.chatWidget} privacyPolicy={content.contact.privacyPolicy} />
       </body>

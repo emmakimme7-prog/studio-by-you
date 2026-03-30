@@ -39,12 +39,9 @@ export default function VoteDemoPage() {
                 cursor: "pointer",
               }}
             >
-              {option.label} 보기
+              {option.label}
             </button>
           ))}
-          <span style={{ fontSize: "0.75rem", color: "rgba(255,255,255,0.65)" }}>
-            로그인 없이 데모 데이터가 바로 열립니다.
-          </span>
         </div>
         <div className="demo-topbar-right">
           <button className="demo-reset-btn" onClick={reload}>새로고침</button>
@@ -53,7 +50,7 @@ export default function VoteDemoPage() {
       </div>
       <iframe
         key={`${role}-${key}`}
-        src={`/vote-demo/index.html?v=6&demoRole=${role}`}
+        src={`/vote-demo/index.html?v=7&demoRole=${role}`}
         style={{ flex: 1, border: "none", width: "100%" }}
         title="투표 시스템 데모"
       />

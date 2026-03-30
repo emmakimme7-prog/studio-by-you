@@ -26,6 +26,7 @@ const appState = {
   studentFilterGradeDraft: "all",
   studentFilterClassDraft: "all",
   selectedStudentIds: [],
+  toast: null,
 };
 
 function escapeHtml(value) {
@@ -38,7 +39,7 @@ function escapeHtml(value) {
 }
 
 function generatePassword(length = 10) {
-  const chars = "ABCDEFGHJKLMNPQRSTUVWXYZabcdefghijkmnopqrstuvwxyz23456789";
+  const chars = "0123456789";
   let password = "";
   for (let index = 0; index < length; index += 1) {
     password += chars[Math.floor(Math.random() * chars.length)];
@@ -82,6 +83,18 @@ function renderTimeOptionsWithSelected(selectedValue = "") {
   }).join("");
 }
 
+function renderGradeOptions(selectedValue = "all", includeAll = true) {
+  const options = [];
+  if (includeAll) {
+    options.push(`<option value="all" ${selectedValue === "all" ? "selected" : ""}>전체</option>`);
+  }
+  for (let index = 1; index <= 6; index += 1) {
+    const value = String(index);
+    options.push(`<option value="${value}" ${selectedValue === value ? "selected" : ""}>${value}학년</option>`);
+  }
+  return options.join("");
+}
+
 function toDateInputValue(value) {
   const date = new Date(value);
   const year = date.getFullYear();
@@ -100,6 +113,18 @@ function toTimeInputValue(value) {
 function formatDateLabel(value) {
   if (!value) return "-";
   return String(value).replaceAll("-", ". ") + ".";
+}
+
+function showToast(message, tone = "success") {
+  if (appState.toast?.timer) {
+    clearTimeout(appState.toast.timer);
+  }
+  const timer = setTimeout(() => {
+    appState.toast = null;
+    renderApp();
+  }, 2200);
+  appState.toast = { message, tone, timer };
+  renderApp();
 }
 
 function getElectionStatus(election) {
@@ -167,6 +192,10 @@ function downloadCsv(filename, rows) {
 }
 
 async function compressImage(file) {
+  if (!file) return "";
+  if (!(file instanceof Blob)) {
+    throw new Error("이미지 파일 형식이 올바르지 않습니다.");
+  }
   return new Promise((resolve, reject) => {
     const reader = new FileReader();
     reader.onload = () => {
@@ -222,6 +251,14 @@ function renderApp() {
     root.innerHTML = renderStudent();
   }
 
+  if (appState.toast) {
+    root.insertAdjacentHTML("beforeend", `
+      <div class="app-toast app-toast-${escapeHtml(appState.toast.tone)}" role="status" aria-live="polite">
+        ${escapeHtml(appState.toast.message)}
+      </div>
+    `);
+  }
+
   attachSharedEvents();
 }
 
@@ -275,7 +312,7 @@ function renderSuperAdmin() {
   return `
     <section>
       ${renderPageHeader({
-        roleLabel: "상위 어드민",
+        roleLabel: "운영자",
         title: `${appState.user.name}님, 학교 운영 구조를 관리하고 있습니다.`,
         description: "학교 생성과 학교 어드민 발급을 한 화면에서 처리하고 전체 현황을 빠르게 확인할 수 있습니다.",
         actions: `<button class="secondary" id="logout-button">로그아웃</button>`,
@@ -298,7 +335,12 @@ function renderSuperAdmin() {
           <form id="school-form">
             <label>학교명<input name="name" required></label>
             <label>학교 코드<input name="code" required></label>
-            <div class="split-fields">
+            <label class="toggle">
+              <input type="checkbox" class="toggle-input date-period-toggle" checked>
+              <span class="toggle-slider" aria-hidden="true"></span>
+              <span class="toggle-label">사용 기간 지정</span>
+            </label>
+            <div class="split-fields date-fields-wrap">
               <label class="date-field">사용 시작일<input name="accessStartDate" type="date" required></label>
               <label class="date-field">사용 종료일<input name="accessEndDate" type="date" required></label>
             </div>
@@ -341,7 +383,7 @@ function renderSuperAdmin() {
                   </div>
                 </div>
                 <p>사용 기간: ${escapeHtml(formatDateLabel(school.accessStartDate))} ~ ${escapeHtml(formatDateLabel(school.accessEndDate))}</p>
-                <p>하위 어드민: ${school.admin ? `${escapeHtml(school.admin.name)} (${escapeHtml(school.admin.username)})` : "없음"}</p>
+                <p>선생님: ${school.admin ? `${escapeHtml(school.admin.name)} (${escapeHtml(school.admin.username)})` : "없음"}</p>
                 <p class="muted">학생 수 ${school.studentCount}명 · 투표 수 ${school.electionCount}개</p>
                 <div class="section-actions school-card-actions">
                   <button class="secondary" type="button" data-action="toggle-school-edit" data-school-id="${school.id}">
@@ -393,7 +435,7 @@ function renderCandidateField(candidate = {}, index = 0) {
       <div class="row-between">
         <div class="candidate-field-head">
           <button class="candidate-drag-handle" type="button" tabindex="-1" aria-label="후보 순서 이동">
-            <img src="/vote-demo/move.svg" alt="" aria-hidden="true">
+            <img src="move.svg" alt="" aria-hidden="true">
           </button>
           <p class="field-title">후보자 ${index + 1}</p>
         </div>
@@ -404,9 +446,16 @@ function renderCandidateField(candidate = {}, index = 0) {
       <label>이름<input name="candidateName" value="${escapeHtml(candidate.name || "")}" required></label>
       <label>설명<input name="candidateDescription" placeholder="후보 설명" value="${escapeHtml(candidate.description || "")}"></label>
       ${hasPhoto ? `<div class="candidate-photo-preview"><img class="candidate-photo" src="${candidate.photo}" alt="${escapeHtml(candidate.name || "후보")} 사진"></div>` : ""}
-      <label>사진<input name="candidatePhoto" type="file" accept="image/*" ${hasPhoto ? "" : "required"}></label>
+      <label>사진<input name="candidatePhoto" type="file" accept="image/*"></label>
     </div>
   `;
+}
+
+function renderCandidateMedia(candidate) {
+  if (candidate.photo) {
+    return `<img class="candidate-photo" src="${candidate.photo}" alt="${escapeHtml(candidate.name)} 사진">`;
+  }
+  return `<div class="candidate-photo placeholder">사진 없음</div>`;
 }
 
 function renderCandidateBuilder(options = {}) {
@@ -438,13 +487,13 @@ function renderResultsBox(election, isStudent = false) {
         ${results.map((candidate) => `
           <li class="result-item">
             <div class="candidate-meta">
-              <img class="candidate-photo" src="${candidate.photo}" alt="${escapeHtml(candidate.name)} 사진">
+              ${renderCandidateMedia(candidate)}
               <div>
                 <strong>${escapeHtml(candidate.name)}</strong>
                 ${candidate.description ? `<p class="muted">${escapeHtml(candidate.description)}</p>` : ""}
-                <p class="muted">${candidate.voteCount}표 · ${candidate.rate}%</p>
               </div>
             </div>
+            <p class="result-vote-meta">${candidate.voteCount}표 · ${candidate.rate}%</p>
             <div class="result-bar-track"><div class="result-bar-fill" style="width: ${candidate.rate}%"></div></div>
           </li>
         `).join("")}
@@ -523,7 +572,8 @@ function renderSchoolAdmin() {
             </div>
             <form id="election-form">
               <label>투표 제목<input name="title" required></label>
-              <label>설명<input name="description" required></label>
+              <label>설명<input name="description"></label>
+              <!-- 대상 학년 기능은 잠시 비활성화 -->
               <div class="schedule-block">
                 <label class="toggle">
                   <input type="checkbox" class="toggle-input" id="election-time-toggle">
@@ -565,19 +615,24 @@ function renderSchoolAdmin() {
                       </div>
                       <p class="election-meta-inline">${election.manualControl ? "수동 제어" : `시작 시점 ${escapeHtml(formatDateTime(election.startAt))} ~ 종료 시점 ${escapeHtml(formatDateTime(election.endAt))}`}</p>
                     </div>
-                    <p class="muted">${escapeHtml(election.description)}</p>
+                    ${election.description ? `<p class="muted">${escapeHtml(election.description)}</p>` : ""}
                     ${isEditing ? `
                       <form class="inline-edit-form" data-election-edit-form="${election.id}">
                         <label>투표 제목<input name="title" value="${escapeHtml(election.title)}" required></label>
-                        <label>설명<input name="description" value="${escapeHtml(election.description)}" required></label>
+                        <label>설명<input name="description" value="${escapeHtml(election.description)}"></label>
+                        <!-- 대상 학년 기능은 잠시 비활성화 -->
                         <div class="schedule-block">
-                          <p class="schedule-label">시작 시점 ~ 종료 시점</p>
-                          <div class="schedule-fields">
-                            <label class="date-field schedule-input"><input name="startDate" type="date" value="${toDateInputValue(election.startAt)}" required aria-label="시작 날짜"></label>
-                            <label class="select-field schedule-input"><select name="startTime" class="time-select" required aria-label="시작 시간">${renderTimeOptionsWithSelected(toTimeInputValue(election.startAt))}</select></label>
+                          <label class="toggle">
+                            <input type="checkbox" class="toggle-input" data-action="toggle-edit-election-time" ${!election.manualControl ? "checked" : ""}>
+                            <span class="toggle-slider" aria-hidden="true"></span>
+                            <span class="toggle-label">투표 시간 지정</span>
+                          </label>
+                          <div class="schedule-fields" ${election.manualControl ? 'style="display:none"' : ""}>
+                            <label class="date-field schedule-input"><input name="startDate" type="date" value="${election.manualControl ? "" : toDateInputValue(election.startAt)}" aria-label="시작 날짜"></label>
+                            <label class="select-field schedule-input"><select name="startTime" class="time-select" aria-label="시작 시간">${renderTimeOptionsWithSelected(election.manualControl ? "" : toTimeInputValue(election.startAt))}</select></label>
                             <span class="schedule-divider" aria-hidden="true">~</span>
-                            <label class="date-field schedule-input"><input name="endDate" type="date" value="${toDateInputValue(election.endAt)}" required aria-label="종료 날짜"></label>
-                            <label class="select-field schedule-input"><select name="endTime" class="time-select" required aria-label="종료 시간">${renderTimeOptionsWithSelected(toTimeInputValue(election.endAt))}</select></label>
+                            <label class="date-field schedule-input"><input name="endDate" type="date" value="${election.manualControl ? "" : toDateInputValue(election.endAt)}" aria-label="종료 날짜"></label>
+                            <label class="select-field schedule-input"><select name="endTime" class="time-select" aria-label="종료 시간">${renderTimeOptionsWithSelected(election.manualControl ? "" : toTimeInputValue(election.endAt))}</select></label>
                           </div>
                         </div>
                         ${renderCandidateBuilder({ builderId: `edit-${election.id}`, candidates: election.results || [] })}
@@ -607,6 +662,7 @@ function renderSchoolAdmin() {
                           <span class="toggle-label">${status.code === "active" ? "투표 진행" : "투표 종료"}</span>
                         </label>
                         <div class="section-actions election-card-actions">
+                          <a class="button-link" href="/api/admin/elections/${election.id}/export">결과 CSV 다운로드</a>
                           <button class="secondary election-edit-button" type="button" data-action="toggle-election-edit" data-election-id="${election.id}">수정</button>
                           <button class="secondary election-delete-button" type="button" data-action="delete-election" data-election-id="${election.id}">삭제</button>
                         </div>
@@ -776,7 +832,7 @@ function renderSchoolAdmin() {
                           <td class="student-name-cell">${escapeHtml(student.name)}</td>
                           <td>${escapeHtml(student.grade || "-")} / ${escapeHtml(student.className || "-")} / ${escapeHtml(student.studentNumber || "-")}</td>
                           <td class="mono-cell">${escapeHtml(student.username)}</td>
-                          <td class="mono-cell">보안상 숨김</td>
+                          <td class="mono-cell">${student.password ? escapeHtml(student.password) : "확인 불가"}</td>
                           <td>${escapeHtml(formatDateTime(student.createdAt))}</td>
                           <td>${student.voteCount || 0} / ${totalElectionCount}</td>
                         </tr>
@@ -802,7 +858,7 @@ function renderStudent() {
     <section>
       ${renderPageHeader({
         roleLabel: "학생",
-        title: `${dashboard.school?.name || ""} 투표 참여 화면`,
+        title: `${dashboard.school?.name || ""}`,
         description: `${appState.user.name}님이 참여 가능한 투표와 공개된 결과를 확인할 수 있습니다.`,
         actions: `<button class="secondary" id="logout-button">로그아웃</button>`,
       })}
@@ -823,7 +879,7 @@ function renderStudent() {
                 <p class="section-title">${escapeHtml(election.title)}</p>
                 <span class="pill pill-election-${status.code}">${status.label}</span>
               </div>
-              <p class="muted">${escapeHtml(election.description)}</p>
+              ${election.description ? `<p class="muted">${escapeHtml(election.description)}</p>` : ""}
               <div class="detail-grid">
                 <p>시작: ${escapeHtml(formatDateTime(election.startAt))}</p>
                 <p>종료: ${escapeHtml(formatDateTime(election.endAt))}</p>
@@ -833,16 +889,18 @@ function renderStudent() {
                 ${election.candidates.map((candidate) => `
                   <li class="candidate-item">
                     <div class="candidate-meta">
-                      <img class="candidate-photo" src="${candidate.photo}" alt="${escapeHtml(candidate.name)} 사진">
+                      ${renderCandidateMedia(candidate)}
                       <div>
                         <strong>${escapeHtml(candidate.name)}</strong>
                         ${candidate.description ? `<p class="muted">${escapeHtml(candidate.description)}</p>` : ""}
-                        ${election.resultsVisible ? `<p class="muted">${candidate.voteCount}표 · ${candidate.rate}%</p>` : ""}
                       </div>
                     </div>
-                    <button data-action="vote" data-election-id="${election.id}" data-candidate-id="${candidate.id}" data-candidate-name="${escapeHtml(candidate.name)}" ${canVote ? "" : "disabled"}>
-                      ${existingVote ? "투표 완료" : status.code === "active" ? "투표하기" : status.label}
-                    </button>
+                    ${canVote ? `
+                      <button data-action="vote" data-election-id="${election.id}" data-candidate-id="${candidate.id}" data-candidate-name="${escapeHtml(candidate.name)}">
+                        투표하기
+                      </button>
+                    ` : ""}
+                    ${election.resultsVisible ? `<p class="result-vote-meta">${candidate.voteCount}표 · ${candidate.rate}%</p>` : ""}
                     ${election.resultsVisible ? `<div class="result-bar-track"><div class="result-bar-fill" style="width: ${candidate.rate}%"></div></div>` : ""}
                   </li>
                 `).join("")}
@@ -960,19 +1018,27 @@ function attachSharedEvents() {
 function attachSuperAdminEvents() {
   document.getElementById("school-form")?.addEventListener("submit", async (event) => {
     event.preventDefault();
-    const formData = new FormData(event.currentTarget);
+    const form = event.currentTarget;
+    const formData = new FormData(form);
+    const dateWrap = form.querySelector(".date-fields-wrap");
+    const datesHidden = dateWrap && dateWrap.style.display === "none";
     try {
       await api("/api/schools", {
         method: "POST",
         body: JSON.stringify({
           name: String(formData.get("name")).trim(),
           code: String(formData.get("code")).trim(),
-          accessStartDate: String(formData.get("accessStartDate")).trim(),
-          accessEndDate: String(formData.get("accessEndDate")).trim(),
+          accessStartDate: datesHidden ? "" : String(formData.get("accessStartDate")).trim(),
+          accessEndDate: datesHidden ? "" : String(formData.get("accessEndDate")).trim(),
         }),
       });
-      event.currentTarget.reset();
+      form.reset();
+      const createToggle = form.querySelector(".date-period-toggle");
+      const createDateWrap = form.querySelector(".date-fields-wrap");
+      if (createToggle) createToggle.checked = true;
+      if (createDateWrap) createDateWrap.style.display = "";
       await loadRoleView();
+      showToast("학교가 생성되었습니다.");
     } catch (error) {
       alert(error.message);
     }
@@ -993,6 +1059,7 @@ function attachSuperAdminEvents() {
       });
       event.currentTarget.reset();
       await loadRoleView();
+      showToast("학교 계정이 생성되었습니다.");
     } catch (error) {
       alert(error.message);
     }
@@ -1028,6 +1095,7 @@ function attachSuperAdminEvents() {
         });
         appState.editingSchoolId = null;
         await loadRoleView();
+        showToast("학교 정보가 수정되었습니다.");
       } catch (error) {
         alert(error.message);
       }
@@ -1061,6 +1129,7 @@ function attachSuperAdminEvents() {
           }),
         });
         await loadRoleView();
+        showToast(input.checked ? "학교가 사용 상태로 변경되었습니다." : "학교가 중지 상태로 변경되었습니다.");
       } catch (error) {
         input.checked = !input.checked;
         alert(error.message);
@@ -1086,6 +1155,7 @@ function attachSuperAdminEvents() {
           appState.editingSchoolId = null;
         }
         await loadRoleView();
+        showToast("학교가 삭제되었습니다.");
       } catch (error) {
         alert(error.message);
       }
@@ -1224,6 +1294,7 @@ function attachSchoolAdminEvents() {
           body: JSON.stringify({ resultsVisible: input.checked }),
         });
         await loadRoleView();
+        showToast(input.checked ? "학생 결과 공개가 설정되었습니다." : "학생 결과 공개가 해제되었습니다.");
       } catch (error) {
         alert(error.message);
       }
@@ -1245,15 +1316,45 @@ function attachSchoolAdminEvents() {
     });
   });
 
+  document.querySelectorAll('[data-action="toggle-edit-election-time"]').forEach((input) => {
+    const form = input.closest("[data-election-edit-form]");
+    const fields = form?.querySelector(".schedule-fields");
+    const scheduleInputs = fields?.querySelectorAll('input, select') || [];
+    const syncEditScheduleMode = () => {
+      const enabled = Boolean(input.checked);
+      if (fields) fields.style.display = enabled ? "" : "none";
+      scheduleInputs.forEach((field) => {
+        field.required = enabled;
+        if (!enabled) {
+          field.value = "";
+        }
+      });
+    };
+    input.addEventListener("change", syncEditScheduleMode);
+    syncEditScheduleMode();
+  });
+
   document.querySelectorAll('[data-election-edit-form]').forEach((form) => {
     form.addEventListener("submit", async (event) => {
       event.preventDefault();
       const electionId = String(form.dataset.electionEditForm || "");
+      const scheduleToggle = form.querySelector('[data-action="toggle-edit-election-time"]');
+      const scheduleEnabled = Boolean(scheduleToggle?.checked);
       const startDate = String(form.elements.startDate.value || "").trim();
       const startTime = String(form.elements.startTime.value || "").trim();
       const endDate = String(form.elements.endDate.value || "").trim();
       const endTime = String(form.elements.endTime.value || "").trim();
       try {
+        let startAt = null;
+        let endAt = null;
+        if (scheduleEnabled) {
+          if (!startDate || !startTime || !endDate || !endTime) {
+            alert("시작일과 종료일, 시간을 모두 선택해주세요.");
+            return;
+          }
+          startAt = new Date(`${startDate}T${startTime}:00`).toISOString();
+          endAt = new Date(`${endDate}T${endTime}:00`).toISOString();
+        }
         const rows = [...form.querySelectorAll("[data-candidate-row]")];
         const candidates = await Promise.all(rows.map(async (row) => {
           const file = row.querySelector('input[name="candidatePhoto"]').files[0];
@@ -1270,13 +1371,14 @@ function attachSchoolAdminEvents() {
           body: JSON.stringify({
             title: String(form.elements.title.value || "").trim(),
             description: String(form.elements.description.value || "").trim(),
-            startAt: new Date(`${startDate}T${startTime}:00`).toISOString(),
-            endAt: new Date(`${endDate}T${endTime}:00`).toISOString(),
+            startAt,
+            endAt,
             candidates,
           }),
         });
         appState.editingElectionId = null;
         await loadRoleView();
+        showToast("투표가 수정되었습니다.");
       } catch (error) {
         alert(error.message);
       }
@@ -1301,6 +1403,7 @@ function attachSchoolAdminEvents() {
           appState.editingElectionId = null;
         }
         await loadRoleView();
+        showToast("투표가 삭제되었습니다.");
       } catch (error) {
         alert(error.message);
       }
@@ -1321,6 +1424,7 @@ function attachSchoolAdminEvents() {
           body: JSON.stringify({}),
         });
         await loadRoleView();
+        showToast("투표가 종료되었습니다.");
       } catch (error) {
         input.checked = true;
         alert(error.message);
@@ -1391,7 +1495,7 @@ function attachSchoolAdminEvents() {
       });
 
       await loadRoleView();
-      renderApp();
+      showToast("투표가 생성되었습니다.");
     } catch (error) {
       alert(error.message);
     }
@@ -1430,7 +1534,7 @@ function attachSchoolAdminEvents() {
       `;
       form.reset();
       await loadRoleView();
-      renderApp();
+      showToast("학생 계정이 생성되었습니다.");
     } catch (error) {
       alert(error.message);
     }
@@ -1465,7 +1569,7 @@ function attachSchoolAdminEvents() {
       `;
       form.reset();
       await loadRoleView();
-      renderApp();
+      showToast(`${result.created}명 학생 계정이 생성되었습니다.`);
     } catch (error) {
       alert(error.message);
     }
@@ -1476,14 +1580,29 @@ function attachStudentEvents() {
   document.querySelectorAll('[data-action="vote"]').forEach((button) => {
     button.addEventListener("click", async () => {
       const candidateName = String(button.dataset.candidateName || "").trim();
+      const electionId = String(button.dataset.electionId || "").trim();
+      const candidateId = String(button.dataset.candidateId || "").trim();
       const confirmed = window.confirm(`선택한 후보: ${candidateName}\n\n한 번 투표하면 수정할 수 없습니다. 이 후보에게 투표할까요?`);
       if (!confirmed) return;
       try {
-        await api(`/api/student/elections/${button.dataset.electionId}/vote`, {
+        await api(`/api/student/elections/${electionId}/vote`, {
           method: "POST",
-          body: JSON.stringify({ candidateId: String(button.dataset.candidateId).trim() }),
+          body: JSON.stringify({ candidateId }),
         });
+        const elections = appState.view?.elections || [];
+        const targetElection = elections.find((item) => item.id === electionId);
+        if (targetElection) {
+          targetElection.existingVote = {
+            candidateId,
+            candidateName,
+          };
+        }
+        if (appState.view?.stats) {
+          appState.view.stats.completedVotes = Number(appState.view.stats.completedVotes || 0) + 1;
+        }
+        renderApp();
         await loadRoleView();
+        showToast("투표가 완료되었습니다.");
       } catch (error) {
         alert(error.message);
       }

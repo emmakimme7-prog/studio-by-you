@@ -15,7 +15,7 @@ type ContactFormProps = {
   privacyPolicy: string;
 };
 
-const serviceTypes = ["홈페이지", "관리자 페이지", "나만의 기능 개발", "앱서비스", "유료 서비스 문의"] as const;
+const serviceTypes = ["홈페이지", "관리자 페이지", "나만의 기능 개발", "앱서비스", "유료 솔루션"] as const;
 
 export function ContactForm({ email, headline, plans, privacyPolicy }: ContactFormProps) {
   const [state, formAction, pending] = useActionState(submitContactInquiryAction, undefined);
@@ -29,6 +29,7 @@ export function ContactForm({ email, headline, plans, privacyPolicy }: ContactFo
   const [attachments, setAttachments] = useState<string[]>([]);
   const [isUploadingImages, setIsUploadingImages] = useState(false);
   const [activeAttachment, setActiveAttachment] = useState<string | null>(null);
+  const [toast, setToast] = useState<{ kind: "success" | "error"; message: string } | null>(null);
 
   useEffect(() => {
     if (!state?.success) {
@@ -41,6 +42,26 @@ export function ContactForm({ email, headline, plans, privacyPolicy }: ContactFo
     setPhone("");
     setAttachments([]);
   }, [state?.success]);
+
+  useEffect(() => {
+    if (state?.success) {
+      setToast({ kind: "success", message: state.success });
+      return;
+    }
+
+    if (state?.error) {
+      setToast({ kind: "error", message: state.error });
+    }
+  }, [state]);
+
+  useEffect(() => {
+    if (!toast) {
+      return;
+    }
+
+    const timeout = window.setTimeout(() => setToast(null), 1800);
+    return () => window.clearTimeout(timeout);
+  }, [toast]);
 
   function toggleType(type: string) {
     setSelectedTypes((current) =>
@@ -100,14 +121,20 @@ export function ContactForm({ email, headline, plans, privacyPolicy }: ContactFo
 
   return (
     <>
+      {toast ? (
+        <div className="floating-toast-overlay" role="status" aria-live="polite">
+          <div className={`floating-toast floating-toast-${toast.kind}`}>{toast.message}</div>
+        </div>
+      ) : null}
+
       <section className="contact-reference-shell">
-        <div className="contact-reference-copy">
+        <div className="contact-reference-copy reveal-on-load">
           <h1>문의하기</h1>
           <span>{headline}</span>
           <span className="contact-reference-email">{email}</span>
         </div>
 
-        <form action={formAction} className="contact-reference-form">
+        <form action={formAction} className="contact-reference-form reveal-on-load" style={{ animationDelay: "0.25s" }}>
           <input name="plan" type="hidden" value={activePlan} />
           {selectedTypes.map((type) => (
             <input key={type} name="serviceTypes" type="hidden" value={type} />
@@ -126,12 +153,13 @@ export function ContactForm({ email, headline, plans, privacyPolicy }: ContactFo
                   onMouseEnter={() => setHoveredPlan(plan.name)}
                   onMouseLeave={() => setHoveredPlan(null)}
                 >
-                  {hoveredPlan === plan.name ? (
-                    <div className="contact-plan-tooltip" role="tooltip">
-                      <strong>{plan.price}</strong>
-                      <span>{plan.description}</span>
-                    </div>
-                  ) : null}
+                  <div
+                    className={`contact-plan-tooltip${hoveredPlan === plan.name ? " is-visible" : ""}`}
+                    role="tooltip"
+                  >
+                    <strong>{plan.price}</strong>
+                    <span>{plan.description}</span>
+                  </div>
                   <button
                     className={`contact-plan-button${activePlan === plan.name ? " is-active" : ""}`}
                     key={plan.name}
@@ -250,8 +278,6 @@ export function ContactForm({ email, headline, plans, privacyPolicy }: ContactFo
             >
               {pending ? "등록 중..." : isUploadingImages ? "이미지 처리 중..." : "동의 후 문의 등록"}
             </button>
-            {state?.success ? <p className="success-text">{state.success}</p> : null}
-            {state?.error ? <p className="form-error">{state.error}</p> : null}
           </div>
         </form>
       </section>

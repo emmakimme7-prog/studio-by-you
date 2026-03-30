@@ -12,26 +12,42 @@ function getListingThumbnail(src: string) {
 
 export default async function SharedHomePage() {
   const content = await readSiteContent();
+  const heroObjectPosition = `${content.hero.mediaPositionX ?? 50}% ${content.hero.mediaPositionY ?? 50}%`;
+  const heroScale = content.hero.mediaScale ?? 100;
+  const heroTaglineStyle = { fontSize: `${content.hero.taglineFontSize ?? 14}px`, fontWeight: content.hero.taglineFontWeight ?? "700" };
+  const heroTitleStyle = { fontSize: `${content.hero.titleFontSize ?? 62}px`, fontWeight: content.hero.titleFontWeight ?? "700" };
+  const heroDescriptionStyle = { fontSize: `${content.hero.descriptionFontSize ?? 15}px`, fontWeight: content.hero.descriptionFontWeight ?? "500" };
 
   return (
     <>
       <section className="hero-band">
-        <Image
-          alt="메인 배경"
-          className="reference-hero-image"
-          fill
-          priority
-          sizes="100vw"
-          src="/home-assets/hero-bg-optimized.jpg"
-        />
+        {isVideoSrc(content.hero.media || "") ? (
+          <LazyVideo
+            className="reference-hero-image"
+            src={content.hero.media || ""}
+            style={{ objectPosition: heroObjectPosition, transform: `scale(${heroScale / 100})` }}
+          />
+        ) : (
+          <Image
+            alt="메인 배경"
+            className="reference-hero-image"
+            fill
+            priority
+            sizes="100vw"
+            src={content.hero.media || "/home-assets/hero-bg-optimized.jpg"}
+            style={{ objectPosition: heroObjectPosition, transform: `scale(${heroScale / 100})` }}
+          />
+        )}
         <div className="hero-image-overlay" />
         <div className="hero-band-inner">
           <SiteHeader basePath="/studiobyyou" logoSrc={content.brand.logo} showContactCta={false} />
 
-          <div className="reference-hero-copy">
-            <p>{content.brand.tagline}</p>
-            <h1>{content.hero.title}</h1>
-            <span className="pre-line-copy">{content.hero.description}</span>
+          <div className={`reference-hero-copy${content.hero.description?.trim() ? "" : " is-description-empty"}`}>
+            <p style={heroTaglineStyle}>{content.brand.tagline}</p>
+            <h1 style={heroTitleStyle}>{content.hero.title}</h1>
+            {content.hero.description?.trim() ? (
+              <span className="pre-line-copy" style={heroDescriptionStyle}>{content.hero.description}</span>
+            ) : null}
           </div>
         </div>
       </section>
@@ -82,7 +98,7 @@ export default async function SharedHomePage() {
         <section className="process-section" id="process">
           <div className="panel-heading-reference process-heading">
             <div className="panel-heading-kicker">이렇게 진행돼요.</div>
-            <p>상담부터 오픈까지, 흐름이 끊기지 않게 함께 진행합니다.</p>
+            <p className="pre-line-copy">{content.processTitle}</p>
           </div>
           <div className="process-card-grid">
             {content.processSteps.map((item, index) => (

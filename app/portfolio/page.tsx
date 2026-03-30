@@ -26,7 +26,7 @@ export default async function PortfolioPage() {
     <main className="subpage-shell">
       <SiteHeader compact logoSrc={content.brand.logo} />
 
-      <section className="subpage-hero">
+      <section className="subpage-hero reveal-on-load">
         <h1>포트폴리오</h1>
         <p>{content.projectsIntro}</p>
       </section>

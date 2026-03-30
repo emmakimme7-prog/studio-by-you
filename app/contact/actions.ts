@@ -17,13 +17,22 @@ export async function submitContactInquiryAction(
     const message = getField(formData, "message");
     const name = getField(formData, "name");
     const phone = getField(formData, "phone");
+    const attachments = formData
+      .getAll("attachments")
+      .map((item) => String(item || "").trim())
+      .filter(Boolean)
+      .slice(0, 10);
     const serviceTypes = formData
       .getAll("serviceTypes")
       .map((item) => String(item).trim())
       .filter(Boolean);
 
-    if (!plan || !message || !name || !phone) {
+    if (!plan || !name || !phone) {
       return { error: "필수 정보를 모두 입력해주세요." };
+    }
+
+    if (!message && attachments.length === 0) {
+      return { error: "문의 내용 또는 첨부 이미지를 등록해주세요." };
     }
 
     await pushContactInquiry({
@@ -34,6 +43,7 @@ export async function submitContactInquiryAction(
       message,
       name,
       phone,
+      attachments,
     });
     revalidatePath("/contact");
     revalidatePath("/admin");

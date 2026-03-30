@@ -1,13 +1,11 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useEffect, useState } from "react";
 import Image from "next/image";
 import type { SiteContent } from "@/lib/site-content";
 import { DemoAdmin } from "./demo-admin";
 import { StudioDemoFront } from "./studio-demo-front";
 import type { StudioDemoFrontPage } from "./studio-demo-front";
-
-const STORAGE_KEY = "studio-demo-content";
 
 export function StudioDemoShell({
   initialContent,
@@ -22,11 +20,9 @@ export function StudioDemoShell({
   const isDynamicLogo = content.brand.logo.startsWith("data:");
 
   useEffect(() => {
-    try {
-      const saved = localStorage.getItem(STORAGE_KEY);
-      if (saved) setContent(JSON.parse(saved));
-    } catch {}
-  }, []);
+    setContent(initialContent);
+    setHasLoadedDemoInquiries(false);
+  }, [initialContent]);
 
   async function handleViewChange(newView: "front" | "admin") {
     setView(newView);
@@ -48,13 +44,9 @@ export function StudioDemoShell({
 
   function handleSave(updated: SiteContent) {
     setContent(updated);
-    try {
-      localStorage.setItem(STORAGE_KEY, JSON.stringify(updated));
-    } catch {}
   }
 
   function handleReset() {
-    localStorage.removeItem(STORAGE_KEY);
     setContent(initialContent);
     setHasLoadedDemoInquiries(false);
   }
@@ -93,14 +85,14 @@ export function StudioDemoShell({
       ) : (
         <main className="admin-shell" style={{ flex: 1, minHeight: 0, overflowY: "auto" }}>
           <header className="admin-topbar">
-            <a className="brand-mark" href="/">
+            <div className="brand-mark" role="presentation">
               {isDynamicLogo ? (
                 <img alt="Studio by You" className="header-logo" src={content.brand.logo} />
               ) : (
                 <Image alt="Studio by You" className="header-logo" height={34} src={content.brand.logo} width={148} />
               )}
               <span>관리자</span>
-            </a>
+            </div>
             <div className="topbar-actions">
               <a className="secondary-link" href="/" target="_blank" rel="noreferrer">
                 사이트 보기

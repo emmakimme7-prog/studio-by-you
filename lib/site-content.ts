@@ -67,6 +67,7 @@ export type ContactInquiry = {
   message: string;
   name: string;
   phone: string;
+  attachments: string[];
 };
 
 export type ChatWidgetSettings = {
@@ -89,6 +90,16 @@ export type SiteContent = {
     description: string;
     primaryCta: string;
     secondaryCta?: string;
+    media?: string;
+    mediaPositionX?: number;
+    mediaPositionY?: number;
+    mediaScale?: number;
+    taglineFontSize?: number;
+    taglineFontWeight?: string;
+    titleFontSize?: number;
+    titleFontWeight?: string;
+    descriptionFontSize?: number;
+    descriptionFontWeight?: string;
   };
   metrics: Array<{
     label: string;
@@ -148,6 +159,7 @@ type SiteContentDocument = {
 };
 
 const SITE_CONTENT_TAG = "site-content";
+const TY_PORTFOLIO_PATH = "/portfolio/ty";
 
 const contentPath = path.join(process.cwd(), "data", "site-content.json");
 const fallbackProjectThumbs = [
@@ -301,14 +313,20 @@ function normalizeProject(project: Partial<SiteProject> | undefined, index: numb
     project?.detailImages?.filter(Boolean).length
       ? project.detailImages.filter(Boolean)
       : fallbackProjectDetails[index % fallbackProjectDetails.length];
+  const resolvedSlug = project?.slug || `project-${index + 1}`;
+  const resolvedTitle = project?.title || `프로젝트 ${index + 1}`;
+  const shouldLinkTyPortfolio =
+    resolvedSlug === "project-1" ||
+    resolvedTitle.includes("TY") ||
+    String(project?.siteUrl || "").includes("/portfolio/studio");
 
   return {
-    title: project?.title || `프로젝트 ${index + 1}`,
-    slug: project?.slug || `project-${index + 1}`,
+    title: resolvedTitle,
+    slug: resolvedSlug,
     category: project?.category || "포트폴리오",
     summary: project?.summary || "",
     thumbnailImage: project?.thumbnailImage || fallbackProjectThumbs[index % fallbackProjectThumbs.length],
-    siteUrl: project?.siteUrl || "",
+    siteUrl: shouldLinkTyPortfolio ? TY_PORTFOLIO_PATH : project?.siteUrl || "",
     adminUrl: project?.adminUrl || "",
     detailHtml:
       project?.detailHtml ||
@@ -368,6 +386,7 @@ function normalizeInquiry(inquiry: Partial<ContactInquiry> | undefined, index: n
     message: inquiry?.message || "",
     name: inquiry?.name || "",
     phone: inquiry?.phone || "",
+    attachments: Array.isArray(inquiry?.attachments) ? inquiry.attachments.filter(Boolean) : [],
   };
 }
 
@@ -421,6 +440,16 @@ function normalizeSiteContent(input: SiteContent | Partial<SiteContent>, fallbac
     hero: {
       ...fallback.hero,
       ...source.hero,
+      media: source.hero?.media || fallback.hero.media || "",
+      mediaPositionX: Number.isFinite(source.hero?.mediaPositionX) ? source.hero?.mediaPositionX : fallback.hero.mediaPositionX ?? 50,
+      mediaPositionY: Number.isFinite(source.hero?.mediaPositionY) ? source.hero?.mediaPositionY : fallback.hero.mediaPositionY ?? 50,
+      mediaScale: Number.isFinite(source.hero?.mediaScale) ? source.hero?.mediaScale : fallback.hero.mediaScale ?? 100,
+      taglineFontSize: Number.isFinite(source.hero?.taglineFontSize) ? source.hero?.taglineFontSize : fallback.hero.taglineFontSize ?? 14,
+      taglineFontWeight: source.hero?.taglineFontWeight || fallback.hero.taglineFontWeight || "700",
+      titleFontSize: Number.isFinite(source.hero?.titleFontSize) ? source.hero?.titleFontSize : fallback.hero.titleFontSize ?? 62,
+      titleFontWeight: source.hero?.titleFontWeight || fallback.hero.titleFontWeight || "700",
+      descriptionFontSize: Number.isFinite(source.hero?.descriptionFontSize) ? source.hero?.descriptionFontSize : fallback.hero.descriptionFontSize ?? 15,
+      descriptionFontWeight: source.hero?.descriptionFontWeight || fallback.hero.descriptionFontWeight || "500",
     },
     metrics: Array.isArray(source.metrics) && source.metrics.length ? source.metrics : fallback.metrics,
     servicesIntro: source.servicesIntro || fallback.servicesIntro,

@@ -5,7 +5,7 @@ import { useState } from "react";
 export default function YtDemoPage() {
   const [view, setView] = useState<"front" | "admin">("front");
 
-  const src = view === "front" ? "/yt-demo/index.html?v=14" : "/yt-demo/admin.html?v=14";
+  const src = view === "front" ? "/yt-demo/index.html?v=22" : "/yt-demo/admin.html?v=22";
 
   return (
     <div className="portfolio-demo-shell">

@@ -1,12 +1,6 @@
 export async function uploadImageFile(file: File): Promise<string> {
-  const { compressClientImage } = await import("@/lib/client-image");
-  const dataUrl = await compressClientImage(file);
-  const mimeType = dataUrl.match(/^data:([^;]+);/)?.[1] ?? "image/jpeg";
-  const base64 = dataUrl.split(",")[1];
-  const binary = atob(base64);
-  const bytes = new Uint8Array(binary.length);
-  for (let i = 0; i < binary.length; i++) bytes[i] = binary.charCodeAt(i);
-  const compressed = new File([bytes], file.name, { type: mimeType });
+  const { compressClientImageFile } = await import("@/lib/client-image");
+  const compressed = await compressClientImageFile(file);
   return uploadMediaFile(compressed);
 }
 
@@ -32,4 +26,16 @@ export async function uploadMediaFile(file: File): Promise<string> {
 
   const { url } = await response.json();
   return url as string;
+}
+
+export async function uploadVideoFile(file: File): Promise<string> {
+  const { upload } = await import("@vercel/blob/client");
+  const ext = file.name.split(".").pop()?.toLowerCase() || "mp4";
+  const filename = `uploads/${Date.now()}-${Math.random().toString(36).slice(2, 8)}.${ext}`;
+  const blob = await upload(filename, file, {
+    access: "public",
+    handleUploadUrl: "/api/admin/upload-video",
+    multipart: true,
+  });
+  return blob.url;
 }

@@ -64,7 +64,7 @@ async function dataUrlToFile(dataUrl, fileName = "image.jpg") {
   return new File([blob], fileName, { type: blob.type || "image/jpeg" });
 }
 
-async function fileToCompressedImageDataUrl(file, maxSize = 1400, quality = 0.78) {
+async function fileToCompressedImageDataUrl(file, maxSize = 2400, quality = 0.92) {
   const originalDataUrl = await fileToDataUrl(file);
   return new Promise((resolve) => {
     const image = new Image();
@@ -328,6 +328,11 @@ async function compressVideoForUpload(file, options = {}) {
   }
 }
 
+async function createVideoUploadPlan(file) {
+  // GCS 빠른 업로드 지원 이후로 원본 품질 그대로 업로드
+  return [{ file, label: "original" }];
+}
+
 function renderVideoMarkup(url) {
   return `<video src="${url}" muted autoplay loop playsinline webkit-playsinline preload="auto"></video>`;
 }
@@ -388,24 +393,37 @@ async function hydrateStoredMedia(root = document) {
 
 async function persistUploadedMedia(file, target) {
   try {
-    const optimizedFile = file.type.startsWith("video/")
-      ? await compressVideoForUpload(file)
-      : file;
+    const uploadCandidates = file.type.startsWith("video/")
+      ? await createVideoUploadPlan(file)
+      : [{ file, label: "image" }];
     const imageFallbackUrl = file.type.startsWith("image/")
       ? await fileToCompressedImageDataUrl(file)
-      : optimizedFile.type.startsWith("video/")
-        ? await extractVideoPosterDataUrl(optimizedFile)
-        : "";
+      : await extractVideoPosterDataUrl(uploadCandidates[0]?.file || file);
     const uploadFile = file.type.startsWith("image/")
       ? await dataUrlToFile(imageFallbackUrl, file.name)
-      : optimizedFile;
-    const mediaKey = await saveMediaAsset(uploadFile);
+      : null;
+    let mediaKey = "";
+    let savedVideoFile = uploadCandidates[0]?.file || file;
+
+    if (uploadFile) {
+      // Remote storage: upload original file (no quality loss). Local fallback: use compressed.
+      mediaKey = await saveMediaAsset(isRemoteStorageEnabled() ? file : uploadFile);
+    } else {
+      for (const candidate of uploadCandidates) {
+        mediaKey = await saveMediaAsset(candidate.file);
+        if (mediaKey) {
+          savedVideoFile = candidate.file;
+          break;
+        }
+      }
+    }
+
     if (!mediaKey) {
       throw new Error("Remote media key missing");
     }
 
     let posterKey = "";
-    if (optimizedFile.type.startsWith("video/") && imageFallbackUrl) {
+    if (savedVideoFile.type.startsWith("video/") && imageFallbackUrl) {
       const posterFile = await dataUrlToFile(imageFallbackUrl, `${file.name.replace(/\.[^.]+$/, "")}-poster.jpg`);
       posterKey = await saveMediaAsset(posterFile);
     }
@@ -441,7 +459,10 @@ async function persistUploadedMedia(file, target) {
     return true;
   } catch (error) {
     console.error("Failed to save media asset", error);
-    alert("파일 업로드에 실패했습니다. 영상은 용량이 너무 크면 저장되지 않을 수 있어요. mp4(H.264) 또는 더 작은 파일로 다시 시도해 주세요.");
+    const detail = String(error?.message || error?.name || "알 수 없는 업로드 오류").trim();
+    alert(
+      `파일 업로드에 실패했습니다. 영상은 용량이 너무 크면 저장되지 않을 수 있어요. mp4(H.264) 또는 더 작은 파일로 다시 시도해 주세요.\n\n원인: ${detail}`
+    );
     return false;
   }
 }
@@ -613,6 +634,27 @@ async function saveAndNotify(message) {
   }
   alert(message);
   return true;
+}
+
+async function saveSectionAndNotify(section, payload, message) {
+  try {
+    await remoteRequest("/site-state", {
+      method: "POST",
+      body: JSON.stringify({
+        section,
+        payload,
+      }),
+    });
+    await cacheCurrentSiteStateLocally();
+    siteState = await refreshSiteStateFromRemote();
+    alert(message);
+    return true;
+  } catch (error) {
+    console.error(`Failed to save ${section} section`, error);
+    const detail = String(error?.message || "").trim();
+    alert(`저장 중 문제가 생겼습니다. 다시 시도해 주세요.${detail ? `\n\n원인: ${detail}` : ""}`);
+    return false;
+  }
 }
 
 function renderLegacyIssueNotice(filterFn) {
@@ -1060,6 +1102,7 @@ function renderMainManagement() {
           <div>
             <label>파일명<input id="main-image-name" value="${siteState.main.heroImageName}" readonly></label>
             <label>파일 업로드<input id="main-image-file" type="file" accept="image/*,video/*"></label>
+            <div id="main-upload-status" style="display:none;color:#888;font-size:0.85rem;margin-top:6px;">업로드 중... 완료 후 저장하세요.</div>
           </div>
         </div>
       </div>
@@ -1087,12 +1130,29 @@ function renderMainManagement() {
         siteState.main.heroPosterKey = value;
       },
     });
-    await saveAndNotify("대문 설정이 저장되었습니다.");
+    await saveSectionAndNotify(
+      "main",
+      {
+        enabled: siteState.main.enabled,
+        workListEnabled: siteState.main.workListEnabled,
+        heroImageName: siteState.main.heroImageName,
+        heroMediaType: siteState.main.heroMediaType,
+        heroMediaKey: siteState.main.heroMediaKey,
+        heroPosterKey: siteState.main.heroPosterKey,
+        heroImageUrl: siteState.main.heroImageUrl,
+        heroBackground: siteState.main.heroBackground,
+      },
+      "대문 설정이 저장되었습니다."
+    );
   });
 
   document.querySelector("#main-image-file").addEventListener("change", async (event) => {
     const file = event.target.files?.[0];
     if (!file) return;
+    const saveBtn = document.querySelector("#save-main-button");
+    const statusEl = document.querySelector("#main-upload-status");
+    if (saveBtn) saveBtn.disabled = true;
+    if (statusEl) statusEl.style.display = "block";
     const saved = await persistUploadedMedia(file, {
       section: "main",
       get name() {
@@ -1166,6 +1226,7 @@ function renderAboutManagement() {
         <div>
           <label>파일명<input id="about-image-name" value="${siteState.about.imageName}" readonly></label>
           <label>파일 업로드<input id="about-image-file" type="file" accept="image/*,video/*"></label>
+          <div id="about-upload-status" style="display:none;color:#888;font-size:0.85rem;margin-top:6px;">업로드 중... 완료 후 저장하세요.</div>
         </div>
       </div>
       <div class="button-row"><button class="primary" id="save-about-button" type="button">회사 소개 저장</button></div>
@@ -1199,12 +1260,29 @@ function renderAboutManagement() {
         siteState.about.posterKey = value;
       },
     });
-    await saveAndNotify("회사 소개가 저장되었습니다.");
+    await saveSectionAndNotify(
+      "about",
+      {
+        enabled: siteState.about.enabled,
+        imageEnabled: siteState.about.imageEnabled,
+        imageName: siteState.about.imageName,
+        mediaType: siteState.about.mediaType,
+        mediaKey: siteState.about.mediaKey,
+        posterKey: siteState.about.posterKey,
+        imageUrl: siteState.about.imageUrl,
+        sections: siteState.about.sections,
+      },
+      "회사 소개가 저장되었습니다."
+    );
   });
 
   document.querySelector("#about-image-file").addEventListener("change", async (event) => {
     const file = event.target.files?.[0];
     if (!file) return;
+    const saveBtn = document.querySelector("#save-about-button");
+    const statusEl = document.querySelector("#about-upload-status");
+    if (saveBtn) saveBtn.disabled = true;
+    if (statusEl) statusEl.style.display = "block";
     const saved = await persistUploadedMedia(file, {
       section: "about",
       get name() {
@@ -1238,9 +1316,15 @@ function renderAboutManagement() {
         siteState.about.imageUrl = value;
       },
     });
-    if (!saved) return;
+    if (!saved) {
+      if (saveBtn) saveBtn.disabled = false;
+      if (statusEl) statusEl.style.display = "none";
+      return;
+    }
     const persisted = await persistSectionMedia("about");
     if (!persisted) {
+      if (saveBtn) saveBtn.disabled = false;
+      if (statusEl) statusEl.style.display = "none";
       alert("회사 소개 파일 저장에 실패했습니다. 다시 시도해 주세요.");
       return;
     }
@@ -1623,9 +1707,9 @@ function renderProductsManagement() {
       category: "Visual branding",
       active: true,
       showOnMain: false,
-      name: "New Project",
-      summary: "About this Project contents",
-      content: "About this Project contents",
+      name: "Untitled Visual Project",
+      summary: "브랜드 콘셉트와 결과물을 한 흐름으로 소개하는 프로젝트 설명을 입력해 주세요.",
+      content: "프로젝트 개요, 촬영 방향, 결과물 활용 범위를 이곳에 정리해 주세요.",
       thumbnailName: "main.jpg",
       thumbnailKey: "",
       thumbnailUrl: "",
