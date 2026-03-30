@@ -1,43 +1,30 @@
 "use client";
 
 import { useState } from "react";
-import { uploadImageFile } from "@/lib/client-upload";
 
 type HtmlEditorProps = {
-  defaultValue?: string;
+  defaultValue: string;
   label: string;
-  name?: string;
-  onValueChange?: (value: string) => void;
-  value?: string;
+  name: string;
 };
 
-export function HtmlEditor({ defaultValue = "", label, name, onValueChange, value: valueProp }: HtmlEditorProps) {
-  const [internalValue, setInternalValue] = useState(defaultValue);
-  const [isUploadingImage, setIsUploadingImage] = useState(false);
-  const value = valueProp ?? internalValue;
-
-  function setValue(nextValue: string | ((current: string) => string)) {
-    const resolved = typeof nextValue === "function" ? nextValue(value) : nextValue;
-    if (valueProp === undefined) {
-      setInternalValue(resolved);
-    }
-    onValueChange?.(resolved);
-  }
+export function HtmlEditor({ defaultValue, label, name }: HtmlEditorProps) {
+  const [value, setValue] = useState(defaultValue);
 
   function insertSnippet(snippet: string) {
     setValue((current) => `${current}${current.endsWith("\n") ? "" : "\n"}${snippet}`);
   }
 
-  async function insertImage(file: File) {
-    try {
-      setIsUploadingImage(true);
-      const src = await uploadImageFile(file);
-      insertSnippet(`<p><img src="${src}" alt="" /></p>`);
-    } catch (error) {
-      alert(error instanceof Error ? error.message : "이미지 업로드에 실패했습니다.");
-    } finally {
-      setIsUploadingImage(false);
-    }
+  function insertImage(file: File) {
+    const reader = new FileReader();
+
+    reader.onload = () => {
+      if (typeof reader.result === "string") {
+        insertSnippet(`<p><img src="${reader.result}" alt="" /></p>`);
+      }
+    };
+
+    reader.readAsDataURL(file);
   }
 
   return (
@@ -64,14 +51,12 @@ export function HtmlEditor({ defaultValue = "", label, name, onValueChange, valu
           링크
         </button>
         <label className="html-editor-upload">
-          {isUploadingImage ? "업로드 중..." : "이미지 추가"}
+          이미지 추가
           <input
             accept="image/*"
             onChange={(event) => {
               const file = event.target.files?.[0];
-              if (file) {
-                void insertImage(file);
-              }
+              if (file) insertImage(file);
               event.currentTarget.value = "";
             }}
             type="file"
@@ -85,12 +70,6 @@ export function HtmlEditor({ defaultValue = "", label, name, onValueChange, valu
         rows={14}
         value={value}
       />
-      <div className="html-editor-preview">
-        <div className="upload-copy">
-          <strong>미리보기</strong>
-        </div>
-        <div className="portfolio-detail-html" dangerouslySetInnerHTML={{ __html: value }} />
-      </div>
     </div>
   );
 }

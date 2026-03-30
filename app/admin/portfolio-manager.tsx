@@ -1,9 +1,13 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { useMemo, useState } from "react";
+import { HtmlEditor } from "@/app/admin/html-editor";
+import { isVideoSrc, uploadImageFile, uploadMediaFile } from "@/lib/client-upload";
+import { compressClientVideo } from "@/lib/client-video";
 import type { SiteProject } from "@/lib/site-content";
 
-const PORTFOLIO_DRAFT_STORAGE_KEY = "studiobyyou-portfolio-admin-draft";
+const THUMBNAIL_RATIO_TEXT = "25:29";
+const THUMBNAIL_RECOMMENDED_SIZE = "1250 x 1450px";
 
 type PortfolioManagerProps = {
   projects: SiteProject[];
@@ -15,41 +19,79 @@ type EditableProject = SiteProject & {
   id: string;
 };
 
-type PortfolioDraft = {
-  categories: string[];
-  items: EditableProject[];
-};
-
 function makeId(prefix: string) {
   return `${prefix}-${Math.random().toString(36).slice(2, 9)}`;
 }
 
-function createEmptyProject(category: string): EditableProject {
-  const timestamp = Date.now();
+function VideoUploadInput({ onUpload }: { onUpload: (src: string) => void }) {
+  const [status, setStatus] = useState<"idle" | "compressing" | "uploading">("idle");
+  const [progress, setProgress] = useState(0);
 
-  return {
-    id: makeId("project"),
-    title: "",
-    slug: `project-${timestamp}`,
-    category,
-    summary: "",
-    thumbnailImage: "",
-    siteUrl: "",
-    adminUrl: "",
-    detailHtml: "",
-    detailImages: [],
-  };
+  return (
+    <div>
+      <input
+        accept="image/*,video/mp4,video/webm,video/quicktime"
+        className="file-input"
+        disabled={status !== "idle"}
+        type="file"
+        onChange={async (e) => {
+          const file = e.target.files?.[0];
+          if (!file) return;
+          e.target.value = "";
+          try {
+            let src: string;
+            if (file.type.startsWith("video/")) {
+              setStatus("compressing");
+              setProgress(0);
+              const compressed = await compressClientVideo(file, {
+                onProgress: (ratio) => setProgress(Math.round(ratio * 100)),
+              });
+              setStatus("uploading");
+              src = await uploadMediaFile(compressed);
+            } else {
+              setStatus("uploading");
+              src = await uploadImageFile(file);
+            }
+            onUpload(src);
+          } catch (err) {
+            alert(err instanceof Error ? err.message : "업로드에 실패했습니다.");
+          } finally {
+            setStatus("idle");
+            setProgress(0);
+          }
+        }}
+      />
+      {status === "compressing" && (
+        <p style={{ fontSize: "0.8rem", marginTop: 6, color: "#888" }}>
+          압축 중... {progress}%
+        </p>
+      )}
+      {status === "uploading" && (
+        <p style={{ fontSize: "0.8rem", marginTop: 6, color: "#888" }}>
+          업로드 중...
+        </p>
+      )}
+    </div>
+  );
 }
 
-function goToEditorPage(projectId: string) {
-  if (typeof window === "undefined") {
-    return;
+function MediaPreview({ alt, src }: { alt: string; src: string }) {
+  if (isVideoSrc(src)) {
+    return (
+      <div className="upload-preview upload-preview-compact">
+        <video autoPlay loop muted playsInline src={src} style={{ width: "100%", height: "100%", objectFit: "cover" }} />
+      </div>
+    );
   }
-
-  window.location.assign(`/admin/portfolio-editor?projectId=${projectId}`);
+  return (
+    <div className="upload-preview upload-preview-compact">
+      <img alt={alt} src={src} />
+    </div>
+  );
 }
 
 export function PortfolioManager({ projects, categories, isActive }: PortfolioManagerProps) {
+  const [activeId, setActiveId] = useState<string | null>(null);
   const [draggingId, setDraggingId] = useState<string | null>(null);
   const [isCategoryModalOpen, setIsCategoryModalOpen] = useState(false);
   const [titleQuery, setTitleQuery] = useState("");
@@ -62,57 +104,6 @@ export function PortfolioManager({ projects, categories, isActive }: PortfolioMa
       id: makeId("project"),
     })),
   );
-
-  function persistDraft(nextItems: EditableProject[], nextCategories: string[]) {
-    if (typeof window === "undefined") {
-      return;
-    }
-
-    const payload: PortfolioDraft = { items: nextItems, categories: nextCategories };
-    window.localStorage.setItem(PORTFOLIO_DRAFT_STORAGE_KEY, JSON.stringify(payload));
-  }
-
-  function syncDraftFromStorage() {
-    if (typeof window === "undefined") {
-      return;
-    }
-
-    const raw = window.localStorage.getItem(PORTFOLIO_DRAFT_STORAGE_KEY);
-    if (!raw) {
-      return;
-    }
-
-    try {
-      const parsed = JSON.parse(raw) as Partial<PortfolioDraft>;
-      if (Array.isArray(parsed.categories) && parsed.categories.length) {
-        setCategoryOptions(parsed.categories);
-      }
-      if (Array.isArray(parsed.items)) {
-        setItems(parsed.items as EditableProject[]);
-      }
-    } catch {
-      // ignore invalid draft
-    }
-  }
-
-  useEffect(() => {
-    persistDraft(items, categoryOptions);
-  }, [items, categoryOptions]);
-
-  useEffect(() => {
-    if (typeof window === "undefined") {
-      return;
-    }
-
-    const handleStorage = (event: StorageEvent) => {
-      if (event.key === PORTFOLIO_DRAFT_STORAGE_KEY) {
-        syncDraftFromStorage();
-      }
-    };
-
-    window.addEventListener("storage", handleStorage);
-    return () => window.removeEventListener("storage", handleStorage);
-  }, []);
 
   const categoryPayload = useMemo(
     () => JSON.stringify(categoryOptions.map((item) => item.trim()).filter(Boolean)),
@@ -148,6 +139,8 @@ export function PortfolioManager({ projects, categories, isActive }: PortfolioMa
     });
   }, [categoryQuery, items, summaryQuery, titleQuery]);
 
+  const activeProject = items.find((item) => item.id === activeId) ?? null;
+
   function updateCategory(index: number, value: string) {
     setCategoryOptions((current) => {
       const next = [...current];
@@ -180,6 +173,15 @@ export function PortfolioManager({ projects, categories, isActive }: PortfolioMa
     setCategoryOptions((current) => [...current, `새 카테고리 ${current.length + 1}`]);
   }
 
+  function updateProject(id: string, key: keyof SiteProject, value: string) {
+    setItems((current) => current.map((item) => (item.id === id ? { ...item, [key]: value } : item)));
+  }
+
+  function removeProject(id: string) {
+    setItems((current) => current.filter((item) => item.id !== id));
+    setActiveId((current) => (current === id ? null : current));
+  }
+
   function moveItem(fromId: string, toId: string) {
     if (fromId === toId) {
       return;
@@ -200,14 +202,6 @@ export function PortfolioManager({ projects, categories, isActive }: PortfolioMa
     });
   }
 
-  function addProject() {
-    const nextProject = createEmptyProject(categoryOptions[0] || "기본 카테고리");
-    const nextItems = [nextProject, ...items];
-    setItems(nextItems);
-    persistDraft(nextItems, categoryOptions);
-    goToEditorPage(nextProject.id);
-  }
-
   return (
     <>
       <input disabled={!isActive} name="portfolioCategoriesPayload" readOnly type="hidden" value={categoryPayload} />
@@ -219,9 +213,6 @@ export function PortfolioManager({ projects, categories, isActive }: PortfolioMa
           <span className="topbar-sub">카테고리 {categoryOptions.length}개</span>
         </div>
         <div className="faq-manager-actions">
-          <button className="secondary-link button-reset" onClick={addProject} type="button">
-            프로젝트 추가
-          </button>
           <button className="secondary-link button-reset" onClick={() => setIsCategoryModalOpen(true)} type="button">
             카테고리 관리
           </button>
@@ -252,15 +243,13 @@ export function PortfolioManager({ projects, categories, isActive }: PortfolioMa
         </div>
       </div>
 
-      <p className="section-label">프로젝트를 클릭하면 같은 페이지에서 편집 화면으로 이동합니다.</p>
-
       <div className="portfolio-admin-list">
-        {filteredItems.map((project) => (
+        {filteredItems.map((project, index) => (
           <button
             className={`portfolio-admin-row button-reset${draggingId === project.id ? " is-dragging" : ""}`}
             draggable
             key={project.id}
-            onClick={() => goToEditorPage(project.id)}
+            onClick={() => setActiveId(project.id)}
             onDragEnd={() => setDraggingId(null)}
             onDragOver={(event) => event.preventDefault()}
             onDragStart={() => setDraggingId(project.id)}
@@ -275,21 +264,131 @@ export function PortfolioManager({ projects, categories, isActive }: PortfolioMa
               <img alt="" src="/home-assets/move.svg" />
             </span>
             <div className="portfolio-admin-row-thumb">
-              {project.thumbnailImage ? (
-                <img alt={project.title || "새 포트폴리오"} src={project.thumbnailImage} />
-              ) : (
-                <span className="portfolio-admin-row-thumb-empty">썸네일 없음</span>
-              )}
+              <img alt={project.title} src={project.thumbnailImage} />
             </div>
             <div className="portfolio-admin-meta">
-              <strong>{project.title || "제목 없음"}</strong>
+              <strong>{project.title}</strong>
               <span>{project.category}</span>
-              <span>{project.summary || "설명을 입력해주세요."}</span>
+              <span>{project.summary}</span>
             </div>
             <span className="portfolio-admin-slug">{items.findIndex((item) => item.id === project.id) + 1}</span>
           </button>
         ))}
       </div>
+
+      {activeProject ? (
+        <div className="admin-modal-backdrop is-open" onClick={() => setActiveId(null)} role="presentation">
+          <div
+            aria-modal="true"
+            className="admin-modal admin-modal-wide"
+            onClick={(event) => event.stopPropagation()}
+            role="dialog"
+          >
+            <div className="admin-modal-head">
+              <div>
+                <p className="section-label">Portfolio</p>
+                <h3>{activeProject.title}</h3>
+              </div>
+              <button className="secondary-link button-reset" onClick={() => setActiveId(null)} type="button">
+                닫기
+              </button>
+            </div>
+
+            {items.map((project, index) =>
+              project.id === activeProject.id ? (
+                <div className="form-grid two-columns" key={project.id}>
+                  <label>
+                    <span>프로젝트명</span>
+                    <input
+                      name={`projectTitle${index}`}
+                      onChange={(event) => updateProject(project.id, "title", event.target.value)}
+                      required
+                      value={project.title}
+                    />
+                  </label>
+                  <label>
+                    <span>슬러그</span>
+                    <input
+                      name={`projectSlug${index}`}
+                      onChange={(event) => updateProject(project.id, "slug", event.target.value)}
+                      required
+                      value={project.slug}
+                    />
+                  </label>
+                  <label>
+                    <span>카테고리</span>
+                    <select
+                      className="faq-category-select"
+                      name={`projectCategory${index}`}
+                      onChange={(event) => updateProject(project.id, "category", event.target.value)}
+                      value={project.category}
+                    >
+                      {categoryOptions.map((category) => (
+                        <option key={category} value={category}>
+                          {category}
+                        </option>
+                      ))}
+                    </select>
+                  </label>
+                  <label>
+                    <span>사이트 링크</span>
+                    <input
+                      name={`projectSiteUrl${index}`}
+                      onChange={(event) => updateProject(project.id, "siteUrl", event.target.value)}
+                      placeholder="https://example.com"
+                      value={project.siteUrl || ""}
+                    />
+                  </label>
+                  <label>
+                    <span>관리자 링크</span>
+                    <input
+                      name={`projectAdminUrl${index}`}
+                      onChange={(event) => updateProject(project.id, "adminUrl", event.target.value)}
+                      placeholder="https://admin.example.com"
+                      value={project.adminUrl || ""}
+                    />
+                  </label>
+                  <label className="full-width">
+                    <span>설명</span>
+                    <textarea
+                      name={`projectSummary${index}`}
+                      onChange={(event) => updateProject(project.id, "summary", event.target.value)}
+                      required
+                      rows={3}
+                      value={project.summary}
+                    />
+                  </label>
+                  <div className="full-width upload-block-side">
+                    <MediaPreview alt={`${project.title} 썸네일`} src={project.thumbnailImage} />
+                    <div className="upload-block-side-info">
+                      <div className="upload-copy">
+                        <strong>썸네일 이미지 / 영상</strong>
+                        <p>{`이미지: 권장 ${THUMBNAIL_RECOMMENDED_SIZE} · 비율 ${THUMBNAIL_RATIO_TEXT}`}</p>
+                        <p>영상: mp4 · webm 권장</p>
+                      </div>
+                      <VideoUploadInput
+                        onUpload={(src) => updateProject(project.id, "thumbnailImage", src)}
+                      />
+                    </div>
+                  </div>
+                  <div className="full-width">
+                    <HtmlEditor defaultValue={project.detailHtml} label="상세 페이지 본문" name={`projectDetailHtml${index}`} />
+                  </div>
+                </div>
+              ) : null,
+            )}
+            <div className="section-actions">
+              <button
+                className="secondary-link is-danger button-reset"
+                onClick={() => removeProject(activeProject.id)}
+                type="button"
+              >
+                프로젝트 삭제
+              </button>
+            </div>
+          </div>
+        </div>
+      ) : null}
 
       {isCategoryModalOpen ? (
         <div className="admin-modal-backdrop is-open" onClick={() => setIsCategoryModalOpen(false)} role="presentation">

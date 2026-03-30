@@ -19,10 +19,6 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
 
-  if (!process.env.BLOB_READ_WRITE_TOKEN) {
-    return NextResponse.json({ error: "업로드 저장소 설정이 누락되었습니다." }, { status: 500 });
-  }
-
   const formData = await request.formData();
   const file = formData.get("file");
 
@@ -41,11 +37,7 @@ export async function POST(request: NextRequest) {
   const ext = file.name.split(".").pop()?.toLowerCase() || "bin";
   const filename = `uploads/${Date.now()}-${Math.random().toString(36).slice(2, 8)}.${ext}`;
 
-  try {
-    const blob = await put(filename, file, { access: "public" });
-    return NextResponse.json({ url: blob.url });
-  } catch (error) {
-    console.error("Admin upload failed", error);
-    return NextResponse.json({ error: "파일 업로드에 실패했습니다." }, { status: 500 });
-  }
+  const blob = await put(filename, file, { access: "public" });
+
+  return NextResponse.json({ url: blob.url });
 }
