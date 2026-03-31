@@ -6,18 +6,30 @@ import { PortfolioDetailEditor } from "@/app/admin/portfolio-detail-editor";
 import { isVideoSrc, uploadImageFile, uploadVideoFile } from "@/lib/client-upload";
 import type { SiteProject } from "@/lib/site-content";
 
-const PORTFOLIO_DRAFT_STORAGE_KEY = "studiobyyou-portfolio-admin-draft";
+const PORTFOLIO_DRAFT_STORAGE_KEY = "studiobyyou-portfolio-admin-draft-v2";
 const THUMBNAIL_RATIO_TEXT = "25:29";
 const THUMBNAIL_RECOMMENDED_SIZE = "1250 x 1450px";
 
 type EditableProject = SiteProject & {
-  id: string;
+  editorId: string;
 };
 
 type PortfolioDraft = {
   categories: string[];
   items: EditableProject[];
 };
+
+function getValidDraft(source: PortfolioDraft, projectId: string): PortfolioDraft | null {
+  if (!Array.isArray(source.items) || !Array.isArray(source.categories)) {
+    return null;
+  }
+
+  if (!projectId) {
+    return source;
+  }
+
+  return source.items.some((item) => item.editorId === projectId) ? source : null;
+}
 
 function MediaPreview({ alt, src }: { alt: string; src: string }) {
   if (!src) {
@@ -43,9 +55,15 @@ function MediaPreview({ alt, src }: { alt: string; src: string }) {
   );
 }
 
-export function PortfolioEditorClient({ projectId }: { projectId: string }) {
+export function PortfolioEditorClient({
+  initialDraft,
+  projectId,
+}: {
+  initialDraft: PortfolioDraft;
+  projectId: string;
+}) {
   const router = useRouter();
-  const [draft, setDraft] = useState<PortfolioDraft | null>(null);
+  const [draft, setDraft] = useState<PortfolioDraft>(initialDraft);
   const [status, setStatus] = useState<string>("");
   const [uploadStatus, setUploadStatus] = useState<"idle" | "uploading">("idle");
   const [isSaving, setIsSaving] = useState(false);
@@ -56,37 +74,42 @@ export function PortfolioEditorClient({ projectId }: { projectId: string }) {
       return;
     }
 
-    const raw = window.localStorage.getItem(PORTFOLIO_DRAFT_STORAGE_KEY);
-    if (!raw) {
-      return;
+    const saved = window.localStorage.getItem(PORTFOLIO_DRAFT_STORAGE_KEY);
+
+    if (saved) {
+      try {
+        const parsed = JSON.parse(saved) as PortfolioDraft;
+        const nextDraft = getValidDraft(parsed, projectId);
+        if (nextDraft) {
+          setDraft(nextDraft);
+          return;
+        }
+      } catch {
+        // Fall through to reset storage with server data.
+      }
     }
 
-    try {
-      const parsed = JSON.parse(raw) as PortfolioDraft;
-      setDraft(parsed);
-    } catch {
-      setDraft(null);
-    }
-  }, []);
+    const fallbackDraft = getValidDraft(initialDraft, projectId) ?? initialDraft;
+    setDraft(fallbackDraft);
+    window.localStorage.setItem(PORTFOLIO_DRAFT_STORAGE_KEY, JSON.stringify(fallbackDraft));
+  }, [initialDraft, projectId]);
 
   const project = useMemo(
-    () => draft?.items.find((item) => item.id === projectId) ?? null,
+    () => draft.items.find((item) => item.editorId === projectId) ?? null,
     [draft, projectId],
   );
 
   function updateDraft(nextDraft: PortfolioDraft) {
     setDraft(nextDraft);
-    window.localStorage.setItem(PORTFOLIO_DRAFT_STORAGE_KEY, JSON.stringify(nextDraft));
+    if (typeof window !== "undefined") {
+      window.localStorage.setItem(PORTFOLIO_DRAFT_STORAGE_KEY, JSON.stringify(nextDraft));
+    }
   }
 
   function updateProject(key: keyof SiteProject, value: string) {
-    if (!draft) {
-      return;
-    }
-
     updateDraft({
       ...draft,
-      items: draft.items.map((item) => (item.id === projectId ? { ...item, [key]: value } : item)),
+      items: draft.items.map((item) => (item.editorId === projectId ? { ...item, [key]: value } : item)),
     });
   }
 
@@ -118,7 +141,7 @@ export function PortfolioEditorClient({ projectId }: { projectId: string }) {
       },
       body: JSON.stringify({
         categories: nextDraft.categories,
-        projects: nextDraft.items.map(({ id, ...item }) => item),
+        projects: nextDraft.items.map(({ editorId, ...item }) => item),
       }),
     });
 
@@ -129,13 +152,9 @@ export function PortfolioEditorClient({ projectId }: { projectId: string }) {
   }
 
   async function removeProject() {
-    if (!draft) {
-      return;
-    }
-
     const nextDraft = {
       ...draft,
-      items: draft.items.filter((item) => item.id !== projectId),
+      items: draft.items.filter((item) => item.editorId !== projectId),
     };
 
     try {
@@ -143,6 +162,11 @@ export function PortfolioEditorClient({ projectId }: { projectId: string }) {
       setStatus("");
       updateDraft(nextDraft);
       await persistDraftToServer(nextDraft);
+      if (typeof window !== "undefined") {
+        window.location.assign("/admin");
+        return;
+      }
+
       router.push("/admin");
       router.refresh();
     } catch (error) {
@@ -153,10 +177,6 @@ export function PortfolioEditorClient({ projectId }: { projectId: string }) {
   }
 
   async function saveDraft() {
-    if (!draft) {
-      return;
-    }
-
     try {
       setIsSaving(true);
       setStatus("");
@@ -169,7 +189,7 @@ export function PortfolioEditorClient({ projectId }: { projectId: string }) {
     }
   }
 
-  if (!draft || !project) {
+  if (!project) {
     return (
       <main className="portfolio-editor-shell">
         <section className="portfolio-editor-panel">
@@ -245,13 +265,13 @@ export function PortfolioEditorClient({ projectId }: { projectId: string }) {
                 <p>영상: mp4 · webm 권장</p>
               </div>
               <div className="file-input-stack file-input-stack-inline">
-                <label className="file-input-button" htmlFor={`portfolio-thumbnail-${project.id}`}>
+                <label className="file-input-button" htmlFor={`portfolio-thumbnail-${project.editorId}`}>
                   썸네일 수정
                 </label>
                 <span className="file-input-name">{thumbnailFileName || "선택된 파일 없음"}</span>
               </div>
               <input
-                id={`portfolio-thumbnail-${project.id}`}
+                id={`portfolio-thumbnail-${project.editorId}`}
                 accept="image/*,video/mp4,video/webm,video/quicktime"
                 className="file-input"
                 disabled={uploadStatus !== "idle"}
@@ -280,16 +300,17 @@ export function PortfolioEditorClient({ projectId }: { projectId: string }) {
               {uploadStatus === "uploading" ? <p className="section-label">업로드 중...</p> : null}
             </div>
           </div>
-          <div className="full-width portfolio-editor-detail-field">
-            <div className="upload-copy">
-              <strong>상세 페이지 본문</strong>
-            </div>
-            <PortfolioDetailEditor
-              initialHtml={project.detailHtml}
-              onChange={(nextValue) => updateProject("detailHtml", nextValue)}
-              projectId={project.id}
-            />
+        </div>
+
+        <div className="portfolio-editor-detail-field">
+          <div className="upload-copy">
+            <strong>상세 페이지 본문</strong>
           </div>
+          <PortfolioDetailEditor
+            initialHtml={project.detailHtml}
+            onChange={(nextValue) => updateProject("detailHtml", nextValue)}
+            projectId={project.editorId}
+          />
         </div>
 
         <div className="section-actions">

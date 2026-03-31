@@ -3,7 +3,7 @@
 import { useEffect, useMemo, useState } from "react";
 import type { SiteProject } from "@/lib/site-content";
 
-const PORTFOLIO_DRAFT_STORAGE_KEY = "studiobyyou-portfolio-admin-draft";
+const PORTFOLIO_DRAFT_STORAGE_KEY = "studiobyyou-portfolio-admin-draft-v2";
 
 type PortfolioManagerProps = {
   projects: SiteProject[];
@@ -12,7 +12,7 @@ type PortfolioManagerProps = {
 };
 
 type EditableProject = SiteProject & {
-  id: string;
+  editorId: string;
 };
 
 type PortfolioDraft = {
@@ -20,15 +20,64 @@ type PortfolioDraft = {
   items: EditableProject[];
 };
 
-function makeId(prefix: string) {
-  return `${prefix}-${Math.random().toString(36).slice(2, 9)}`;
+function readStoredDraft(): PortfolioDraft | null {
+  if (typeof window === "undefined") {
+    return null;
+  }
+
+  const saved = window.localStorage.getItem(PORTFOLIO_DRAFT_STORAGE_KEY);
+  if (!saved) {
+    return null;
+  }
+
+  try {
+    const parsed = JSON.parse(saved) as PortfolioDraft;
+    if (Array.isArray(parsed.items) && Array.isArray(parsed.categories)) {
+      return parsed;
+    }
+  } catch {
+    return null;
+  }
+
+  return null;
+}
+
+function makeDraftId() {
+  return `draft-${Math.random().toString(36).slice(2, 9)}`;
+}
+
+function makeStableEditorId(slug: string, index: number) {
+  const safeSlug = slug.trim() || `project-${index + 1}`;
+  return `project-${safeSlug}`;
+}
+
+function makeUniqueEditorId(baseId: string, usedIds: Set<string>) {
+  let nextId = baseId;
+  let suffix = 1;
+
+  while (usedIds.has(nextId)) {
+    suffix += 1;
+    nextId = `${baseId}-${suffix}`;
+  }
+
+  usedIds.add(nextId);
+  return nextId;
+}
+
+function createEditableProjects(projects: SiteProject[]) {
+  const usedIds = new Set<string>();
+
+  return projects.map((project, index) => ({
+    ...project,
+    editorId: makeUniqueEditorId(makeStableEditorId(project.slug, index), usedIds),
+  }));
 }
 
 function createEmptyProject(category: string): EditableProject {
   const timestamp = Date.now();
 
   return {
-    id: makeId("project"),
+    editorId: makeDraftId(),
     title: "",
     slug: `project-${timestamp}`,
     category,
@@ -50,18 +99,17 @@ function goToEditorPage(projectId: string) {
 }
 
 export function PortfolioManager({ projects, categories, isActive }: PortfolioManagerProps) {
+  const serverItems = useMemo(() => createEditableProjects(projects), [projects]);
+  const serverCategories = useMemo(() => (categories.length ? categories : ["기본 카테고리"]), [categories]);
   const [draggingId, setDraggingId] = useState<string | null>(null);
   const [isCategoryModalOpen, setIsCategoryModalOpen] = useState(false);
   const [titleQuery, setTitleQuery] = useState("");
   const [summaryQuery, setSummaryQuery] = useState("");
   const [categoryQuery, setCategoryQuery] = useState("전체");
-  const [categoryOptions, setCategoryOptions] = useState<string[]>(categories.length ? categories : ["기본 카테고리"]);
-  const [items, setItems] = useState<EditableProject[]>(
-    projects.map((project) => ({
-      ...project,
-      id: makeId("project"),
-    })),
-  );
+  const [status, setStatus] = useState("");
+  const [deletingId, setDeletingId] = useState<string | null>(null);
+  const [categoryOptions, setCategoryOptions] = useState<string[]>(serverCategories);
+  const [items, setItems] = useState<EditableProject[]>(serverItems);
 
   function persistDraft(nextItems: EditableProject[], nextCategories: string[]) {
     if (typeof window === "undefined") {
@@ -72,47 +120,42 @@ export function PortfolioManager({ projects, categories, isActive }: PortfolioMa
     window.localStorage.setItem(PORTFOLIO_DRAFT_STORAGE_KEY, JSON.stringify(payload));
   }
 
-  function syncDraftFromStorage() {
-    if (typeof window === "undefined") {
-      return;
-    }
+  async function persistDraftToServer(nextItems: EditableProject[], nextCategories: string[]) {
+    const response = await fetch("/api/admin/portfolio-save", {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify({
+        categories: nextCategories,
+        projects: nextItems.map(({ editorId, ...item }) => item),
+      }),
+    });
 
-    const raw = window.localStorage.getItem(PORTFOLIO_DRAFT_STORAGE_KEY);
-    if (!raw) {
-      return;
-    }
-
-    try {
-      const parsed = JSON.parse(raw) as Partial<PortfolioDraft>;
-      if (Array.isArray(parsed.categories) && parsed.categories.length) {
-        setCategoryOptions(parsed.categories);
-      }
-      if (Array.isArray(parsed.items)) {
-        setItems(parsed.items as EditableProject[]);
-      }
-    } catch {
-      // ignore invalid draft
+    const payload = (await response.json().catch(() => ({}))) as { error?: string };
+    if (!response.ok) {
+      throw new Error(payload.error || "포트폴리오 저장에 실패했습니다.");
     }
   }
+
 
   useEffect(() => {
     persistDraft(items, categoryOptions);
   }, [items, categoryOptions]);
 
   useEffect(() => {
-    if (typeof window === "undefined") {
+    const stored = readStoredDraft();
+
+    if (stored) {
+      setCategoryOptions(stored.categories.length ? stored.categories : ["기본 카테고리"]);
+      setItems(stored.items);
       return;
     }
 
-    const handleStorage = (event: StorageEvent) => {
-      if (event.key === PORTFOLIO_DRAFT_STORAGE_KEY) {
-        syncDraftFromStorage();
-      }
-    };
-
-    window.addEventListener("storage", handleStorage);
-    return () => window.removeEventListener("storage", handleStorage);
-  }, []);
+    setCategoryOptions(serverCategories);
+    setItems(serverItems);
+    persistDraft(serverItems, serverCategories);
+  }, [serverCategories, serverItems]);
 
   const categoryPayload = useMemo(
     () => JSON.stringify(categoryOptions.map((item) => item.trim()).filter(Boolean)),
@@ -186,8 +229,8 @@ export function PortfolioManager({ projects, categories, isActive }: PortfolioMa
     }
 
     setItems((current) => {
-      const fromIndex = current.findIndex((item) => item.id === fromId);
-      const toIndex = current.findIndex((item) => item.id === toId);
+      const fromIndex = current.findIndex((item) => item.editorId === fromId);
+      const toIndex = current.findIndex((item) => item.editorId === toId);
 
       if (fromIndex < 0 || toIndex < 0) {
         return current;
@@ -205,7 +248,39 @@ export function PortfolioManager({ projects, categories, isActive }: PortfolioMa
     const nextItems = [nextProject, ...items];
     setItems(nextItems);
     persistDraft(nextItems, categoryOptions);
-    goToEditorPage(nextProject.id);
+    goToEditorPage(nextProject.editorId);
+  }
+
+  async function removeProject(projectId: string) {
+    const project = items.find((item) => item.editorId === projectId);
+    if (!project) {
+      return;
+    }
+
+    const shouldDelete = typeof window === "undefined"
+      ? true
+      : window.confirm(`"${project.title || "제목 없음"}" 프로젝트를 삭제할까요?`);
+
+    if (!shouldDelete) {
+      return;
+    }
+
+    const nextItems = items.filter((item) => item.editorId !== projectId);
+
+    try {
+      setDeletingId(projectId);
+      setStatus("");
+      setItems(nextItems);
+      persistDraft(nextItems, categoryOptions);
+      await persistDraftToServer(nextItems, categoryOptions);
+      setStatus("프로젝트를 삭제했습니다.");
+    } catch (error) {
+      setItems(items);
+      persistDraft(items, categoryOptions);
+      setStatus(error instanceof Error ? error.message : "프로젝트 삭제에 실패했습니다.");
+    } finally {
+      setDeletingId(null);
+    }
   }
 
   return (
@@ -253,41 +328,55 @@ export function PortfolioManager({ projects, categories, isActive }: PortfolioMa
       </div>
 
       <p className="section-label">프로젝트를 클릭하면 같은 페이지에서 편집 화면으로 이동합니다.</p>
+      {status ? <p className="section-label">{status}</p> : null}
 
       <div className="portfolio-admin-list">
         {filteredItems.map((project) => (
-          <button
-            className={`portfolio-admin-row button-reset${draggingId === project.id ? " is-dragging" : ""}`}
+          <div
+            className={`portfolio-admin-row button-reset${draggingId === project.editorId ? " is-dragging" : ""}`}
             draggable
-            key={project.id}
-            onClick={() => goToEditorPage(project.id)}
+            key={project.editorId}
             onDragEnd={() => setDraggingId(null)}
             onDragOver={(event) => event.preventDefault()}
-            onDragStart={() => setDraggingId(project.id)}
+            onDragStart={() => setDraggingId(project.editorId)}
             onDrop={() => {
               if (draggingId) {
-                moveItem(draggingId, project.id);
+                moveItem(draggingId, project.editorId);
               }
             }}
-            type="button"
           >
             <span aria-hidden="true" className="drag-handle">
               <img alt="" src="/home-assets/move.svg" />
             </span>
-            <div className="portfolio-admin-row-thumb">
-              {project.thumbnailImage ? (
-                <img alt={project.title || "새 포트폴리오"} src={project.thumbnailImage} />
-              ) : (
-                <span className="portfolio-admin-row-thumb-empty">썸네일 없음</span>
-              )}
+            <button className="portfolio-admin-row-main button-reset" onClick={() => goToEditorPage(project.editorId)} type="button">
+              <div className="portfolio-admin-row-thumb">
+                {project.thumbnailImage ? (
+                  <img alt={project.title || "새 포트폴리오"} src={project.thumbnailImage} />
+                ) : (
+                  <span className="portfolio-admin-row-thumb-empty">썸네일 없음</span>
+                )}
+              </div>
+              <div className="portfolio-admin-meta">
+                <strong>{project.title || "제목 없음"}</strong>
+                <span>{project.category}</span>
+                <span>{project.summary || "설명을 입력해주세요."}</span>
+              </div>
+              <span className="portfolio-admin-slug">{items.findIndex((item) => item.editorId === project.editorId) + 1}</span>
+            </button>
+            <div className="portfolio-admin-row-actions">
+              <button className="secondary-link button-reset" onClick={() => goToEditorPage(project.editorId)} type="button">
+                편집
+              </button>
+              <button
+                className="secondary-link is-danger button-reset"
+                disabled={deletingId === project.editorId}
+                onClick={() => void removeProject(project.editorId)}
+                type="button"
+              >
+                {deletingId === project.editorId ? "삭제 중..." : "삭제"}
+              </button>
             </div>
-            <div className="portfolio-admin-meta">
-              <strong>{project.title || "제목 없음"}</strong>
-              <span>{project.category}</span>
-              <span>{project.summary || "설명을 입력해주세요."}</span>
-            </div>
-            <span className="portfolio-admin-slug">{items.findIndex((item) => item.id === project.id) + 1}</span>
-          </button>
+          </div>
         ))}
       </div>
 
