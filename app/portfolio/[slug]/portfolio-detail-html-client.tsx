@@ -18,8 +18,8 @@ export function PortfolioDetailHtmlClient({ html }: Props) {
     root.style.visibility = "hidden";
 
     const getInitialTransform = (kind: string | null) => {
-      if (kind === "media") {
-        return "translateY(32px)";
+      if (kind === "scale") {
+        return "translateY(32px) scale(0.93)";
       }
       return "translateY(52px)";
     };
@@ -34,7 +34,7 @@ export function PortfolioDetailHtmlClient({ html }: Props) {
     for (const el of targets) {
       const tag = el.tagName.toLowerCase();
       const isMedia = tag === "img" || tag === "figure" || el.querySelector("img") !== null;
-      const kind = isMedia ? "media" : "";
+      const kind = isMedia ? "scale" : "";
 
       el.setAttribute("data-reveal", kind);
       el.setAttribute("data-delay", String((delayIndex % 5) + 1));

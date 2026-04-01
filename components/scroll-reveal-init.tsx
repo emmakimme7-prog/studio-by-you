@@ -62,9 +62,6 @@ export function ScrollRevealInit() {
 
     const getInitialTransform = (el: Element) => {
       const kind = el.getAttribute("data-reveal");
-      if (kind === "media") {
-        return "translateY(32px)";
-      }
       if (kind === "scale") {
         return "translateY(32px) scale(0.93)";
       }
