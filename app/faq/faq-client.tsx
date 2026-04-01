@@ -70,6 +70,7 @@ export function FaqClient({ description, groups, title }: FaqClientProps) {
         {menuItems.map((item) => (
           <button
             className={`faq-menu-button${item === activeGroup ? " is-active" : ""}`}
+            data-reveal="scale"
             key={item}
             onClick={() => setActiveGroup(item)}
             type="button"
@@ -80,7 +81,7 @@ export function FaqClient({ description, groups, title }: FaqClientProps) {
       </div>
 
       <div className="faq-group-stack faq-group-stack-centered">
-        <div key={`${activeGroup}-${query}`} className="faq-content-anim">
+        <div key={`${activeGroup}-${query}`} className="faq-content-anim" data-delay="2" data-reveal>
           {visibleGroups.length ? (
             visibleGroups.map((group) => (
               <section className="faq-group" key={group.title}>

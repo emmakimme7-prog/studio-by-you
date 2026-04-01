@@ -5,6 +5,7 @@ import { fileURLToPath } from "node:url";
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const introDir = path.resolve(__dirname, "..");
 const portfolioDir = path.resolve(introDir, "..", "포트폴리오");
+const shipScript = path.resolve(introDir, "..", "_shared", "ship.mjs");
 
 const targets = [
   { label: "Intro site", cwd: introDir },
@@ -29,7 +30,7 @@ if (args.has("--dry-run")) {
 
 for (const target of targets) {
   console.log(`\n== Deploying ${target.label} ==`);
-  const result = spawnSync("vercel", ["--prod", "--yes"], {
+  const result = spawnSync("node", [shipScript, "--", "vercel", "--prod", "--yes"], {
     cwd: target.cwd,
     stdio: "inherit",
   });

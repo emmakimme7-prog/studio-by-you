@@ -130,12 +130,27 @@ export function ServiceManager({ services, isActive }: Props) {
 
             <div className="faq-admin-accordion-body service-admin-body">
               <div className="service-admin-image-row">
+                {(() => {
+                  const inputId = `service-image-${item.id}`;
+                  return (
+                    <>
                 <div className="upload-preview upload-preview-compact">
                   {item.image ? <img alt={item.title || "솔루션 이미지"} src={item.image} /> : <span>이미지 없음</span>}
                 </div>
+                <label className="secondary-link button-reset" htmlFor={inputId}>
+                  이미지 업로드
+                </label>
+                <button
+                  className="secondary-link button-reset"
+                  onClick={() => updateImage(item.id, "/yt-demo/dummy-card-1.svg")}
+                  type="button"
+                >
+                  더미 이미지 적용
+                </button>
                 <input
                   accept="image/*"
                   className="file-input"
+                  id={inputId}
                   type="file"
                   onChange={async (e) => {
                     const file = e.target.files?.[0];
@@ -148,8 +163,12 @@ export function ServiceManager({ services, isActive }: Props) {
                       alert(err instanceof Error ? err.message : "업로드 실패");
                     }
                   }}
+                  disabled={!isActive}
                 />
                 <span className="file-input-name">{selectedFiles[item.id] || "선택된 파일 없음"}</span>
+                    </>
+                  );
+                })()}
               </div>
 
               <label className="full-width">

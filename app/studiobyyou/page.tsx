@@ -3,6 +3,7 @@ import { SiteHeader } from "@/components/site-header";
 import { readSiteContent } from "@/lib/site-content";
 import { isVideoSrc } from "@/lib/client-upload";
 import { LazyVideo } from "@/components/lazy-video";
+import { ScrollRevealInit } from "@/components/scroll-reveal-init";
 
 function getListingThumbnail(src: string) {
   return src;
@@ -18,6 +19,7 @@ export default async function SharedHomePage() {
 
   return (
     <>
+      <ScrollRevealInit />
       <section className="hero-band">
         {isVideoSrc(content.hero.media || "") ? (
           <LazyVideo
@@ -53,14 +55,13 @@ export default async function SharedHomePage() {
       <main className="landing-shell">
         <section className="white-panel" id="portfolio">
           <div className="white-panel-content">
-            <div className="panel-heading-reference">
-              <div className="panel-heading-kicker">이런 작업들을 했어요.</div>
+            <div className="panel-heading-reference" data-reveal>
               <p>대표 포트폴리오</p>
             </div>
 
             <div className="project-card-grid project-card-grid-reference">
               {content.projects.map((project, index) => (
-                <article className="project-shot-card" key={project.title + index}>
+                <article className="project-shot-card" data-reveal="scale" data-delay={String(index % 4)} key={project.title + index}>
                   <div className="project-shot project-shot-reference">
                     {isVideoSrc(project.thumbnailImage) ? (
                       <LazyVideo className="project-image-tag" src={getListingThumbnail(project.thumbnailImage)} />
@@ -94,13 +95,12 @@ export default async function SharedHomePage() {
         </section>
 
         <section className="process-section" id="process">
-          <div className="panel-heading-reference process-heading">
-            <div className="panel-heading-kicker">이렇게 진행돼요.</div>
+          <div className="panel-heading-reference process-heading" data-reveal>
             <p className="pre-line-copy">{content.processTitle}</p>
           </div>
           <div className="process-card-grid">
             {content.processSteps.map((item, index) => (
-              <article className="process-visual-card process-visual-card-reference" key={item.title + index}>
+              <article className="process-visual-card process-visual-card-reference" data-reveal="scale" data-delay={String(index % 3)} key={item.title + index}>
                 <div className="process-number">{index + 1}</div>
                 <div className="process-visual process-visual-plain">
                   <Image

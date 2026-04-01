@@ -7,6 +7,7 @@
     "build": "next build",
     "start": "next start",
     "lint": "next lint",
+    "ship": "node ../_shared/ship.mjs -- vercel --prod --yes",
     "deploy:linked": "node scripts/deploy-linked.mjs",
     "sync:content": "node scripts/sync-site-content.mjs",
     "sync:vote-demo": "node scripts/sync-vote-demo-from-source.mjs"

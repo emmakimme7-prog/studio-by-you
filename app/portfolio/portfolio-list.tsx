@@ -18,6 +18,12 @@ export function PortfolioList({ projects }: PortfolioListProps) {
           className="portfolio-page-card portfolio-page-card-vertical button-reset"
           data-reveal
           data-delay={String(index % 3)}
+          onMouseEnter={(event) => {
+            event.currentTarget.dataset.hovered = "true";
+          }}
+          onMouseLeave={(event) => {
+            delete event.currentTarget.dataset.hovered;
+          }}
           href={`/portfolio/${project.slug}`}
           key={project.title + index}
         >

@@ -52,7 +52,7 @@ export async function POST(request: NextRequest) {
         }))
       : content.projects;
 
-    if (!projects.every((project) => project.title && project.slug && project.category && project.thumbnailImage && project.detailHtml)) {
+    if (!projects.every((project) => project.slug)) {
       return NextResponse.json({ error: "필수 항목을 모두 입력해주세요." }, { status: 400 });
     }
 

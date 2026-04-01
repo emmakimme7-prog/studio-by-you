@@ -1,6 +1,6 @@
 "use client";
 
-import { useActionState, useEffect, useState } from "react";
+import { useActionState, useEffect, useRef, useState } from "react";
 import { submitContactInquiryAction } from "@/app/contact/actions";
 import { compressClientImageFile } from "@/lib/client-image";
 
@@ -30,6 +30,7 @@ export function ContactForm({ email, headline, plans, privacyPolicy }: ContactFo
   const [isUploadingImages, setIsUploadingImages] = useState(false);
   const [activeAttachment, setActiveAttachment] = useState<string | null>(null);
   const [toast, setToast] = useState<{ kind: "success" | "error"; message: string } | null>(null);
+  const lastToastMessageRef = useRef<string>("");
 
   useEffect(() => {
     if (!state?.success) {
@@ -44,6 +45,16 @@ export function ContactForm({ email, headline, plans, privacyPolicy }: ContactFo
   }, [state?.success]);
 
   useEffect(() => {
+    const nextMessage = state?.success || state?.error || "";
+    if (!nextMessage) {
+      return;
+    }
+
+    if (lastToastMessageRef.current === nextMessage) {
+      return;
+    }
+
+    lastToastMessageRef.current = nextMessage;
     if (state?.success) {
       setToast({ kind: "success", message: state.success });
       return;
@@ -52,7 +63,7 @@ export function ContactForm({ email, headline, plans, privacyPolicy }: ContactFo
     if (state?.error) {
       setToast({ kind: "error", message: state.error });
     }
-  }, [state]);
+  }, [state?.error, state?.success]);
 
   useEffect(() => {
     if (!toast) {
@@ -61,6 +72,29 @@ export function ContactForm({ email, headline, plans, privacyPolicy }: ContactFo
 
     const timeout = window.setTimeout(() => setToast(null), 1800);
     return () => window.clearTimeout(timeout);
+  }, [toast]);
+
+  useEffect(() => {
+    if (!toast) {
+      return;
+    }
+
+    const onKeyDown = (event: KeyboardEvent) => {
+      if (event.key === "Escape") {
+        setToast(null);
+      }
+    };
+
+    const onPointerDown = () => {
+      setToast(null);
+    };
+
+    window.addEventListener("keydown", onKeyDown);
+    window.addEventListener("pointerdown", onPointerDown);
+    return () => {
+      window.removeEventListener("keydown", onKeyDown);
+      window.removeEventListener("pointerdown", onPointerDown);
+    };
   }, [toast]);
 
   function toggleType(type: string) {
@@ -145,13 +179,35 @@ export function ContactForm({ email, headline, plans, privacyPolicy }: ContactFo
 
           <div className="contact-form-row">
             <strong>요금제</strong>
-            <div className="contact-plan-grid">
+            <div
+              className="contact-plan-grid"
+              onMouseMove={(event) => {
+                const target = event.target as HTMLElement | null;
+                const item = target?.closest(".contact-plan-item") as HTMLElement | null;
+                const next = item?.dataset.planName || null;
+                if (next !== hoveredPlan) {
+                  setHoveredPlan(next);
+                }
+              }}
+              onPointerLeave={() => setHoveredPlan(null)}
+              onPointerMove={(event) => {
+                const target = event.target as HTMLElement | null;
+                const item = target?.closest(".contact-plan-item") as HTMLElement | null;
+                const next = item?.dataset.planName || null;
+                if (next !== hoveredPlan) {
+                  setHoveredPlan(next);
+                }
+              }}
+            >
               {plans.map((plan) => (
                 <div
                   className="contact-plan-item"
                   key={plan.name}
+                  data-plan-name={plan.name}
                   onMouseEnter={() => setHoveredPlan(plan.name)}
                   onMouseLeave={() => setHoveredPlan(null)}
+                  onPointerEnter={() => setHoveredPlan(plan.name)}
+                  onPointerLeave={() => setHoveredPlan(null)}
                 >
                   <div
                     className={`contact-plan-tooltip${hoveredPlan === plan.name ? " is-visible" : ""}`}
@@ -164,7 +220,11 @@ export function ContactForm({ email, headline, plans, privacyPolicy }: ContactFo
                     className={`contact-plan-button${activePlan === plan.name ? " is-active" : ""}`}
                     key={plan.name}
                     onBlur={() => setHoveredPlan(null)}
-                    onClick={() => setActivePlan(plan.name)}
+                    onFocus={() => setHoveredPlan(plan.name)}
+                    onClick={(event) => {
+                      setActivePlan(plan.name);
+                      event.currentTarget.blur();
+                    }}
                     type="button"
                   >
                     {plan.name}

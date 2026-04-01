@@ -1675,12 +1675,12 @@ main.subpage-shell.portfolio-detail-page {
   width: min(1000px, 100%);
   margin: 0 auto;
   padding: 28px 24px;
-  border: 1px solid var(--line);
-  border-radius: 20px;
+  border-radius: 28px;
   background: #ffffff;
   box-shadow: var(--shadow);
   display: grid;
   gap: 20px;
+  overflow: visible;
 }
 
 .contact-form-row {
@@ -1702,10 +1702,12 @@ main.subpage-shell.portfolio-detail-page {
   grid-template-columns: repeat(3, minmax(0, 1fr));
   gap: 10px;
   width: 100%;
+  overflow: visible;
 }
 
 .contact-plan-item {
   position: relative;
+  overflow: visible;
 }
 
 .contact-plan-button {
@@ -1729,14 +1731,17 @@ main.subpage-shell.portfolio-detail-page {
   position: absolute;
   left: 50%;
   bottom: calc(100% + 12px);
-  z-index: 5;
+  z-index: 50;
   width: 172px;
   padding: 12px 14px;
   border-radius: 18px;
   background: #2f66ff;
   color: #ffffff;
   box-shadow: 0 16px 36px rgba(47, 102, 255, 0.22);
-  transform: translateX(-50%);
+  opacity: 0;
+  pointer-events: none;
+  transform: translateX(-50%) translateY(6px);
+  transition: opacity 0.2s ease, transform 0.2s cubic-bezier(0.22, 1, 0.36, 1);
   text-align: center;
 }
 
@@ -3178,6 +3183,7 @@ td {
   min-height: 100vh;
   padding: 0;
   background: #ffffff;
+  overflow-x: hidden;
 }
 
 .portfolio-editor-panel {
@@ -3185,6 +3191,7 @@ td {
   min-height: 100vh;
   margin: 0 auto;
   padding: 0 0 64px;
+  overflow-x: hidden;
 }
 
 .portfolio-editor-header {
@@ -3216,14 +3223,24 @@ td {
 
 .portfolio-rich-toolbar {
   display: flex;
-  gap: 10px;
-  flex-wrap: wrap;
-  align-items: center;
+  flex-direction: column;
+  align-items: stretch;
+  gap: 0;
   position: sticky;
-  top: 118px;
+  top: 78px;
   z-index: 20;
-  padding: 14px 0 2px;
-  background: linear-gradient(180deg, rgba(255, 255, 255, 0.96) 0%, rgba(255, 255, 255, 0.88) 78%, rgba(255, 255, 255, 0) 100%);
+  padding: 0;
+  overflow-x: hidden;
+  background: rgba(255, 255, 255, 0.97);
+  backdrop-filter: blur(16px);
+  border: 1px solid rgba(222, 227, 238, 0.9);
+  border-radius: 16px;
+  margin-bottom: 14px;
+  font-size: 0.8rem;
+}
+
+.portfolio-rich-toolbar::-webkit-scrollbar {
+  display: none;
 }
 
 .portfolio-toolbar-select {
@@ -3281,14 +3298,48 @@ td {
 
 .portfolio-toolbar-group {
   display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 4px 6px;
+  padding: 6px 14px;
+  border-bottom: 1px solid rgba(222, 227, 238, 0.7);
+}
+
+.portfolio-toolbar-group:last-child {
+  border-bottom: none;
+}
+
+.portfolio-toolbar-inline-select {
+  display: inline-flex;
   align-items: center;
   gap: 6px;
-  flex-shrink: 0;
+  min-height: 34px;
+  padding: 0 10px;
+  border: 1px solid var(--line);
+  border-radius: 10px;
+  background: #ffffff;
+  color: var(--text);
+  font-size: 0.8rem;
+  font-weight: 700;
+}
+
+.portfolio-toolbar-inline-select span {
+  color: var(--muted);
+  white-space: nowrap;
+}
+
+.portfolio-toolbar-inline-select select {
+  min-width: 88px;
+  border: none;
+  background: transparent;
+  font: inherit;
+  color: inherit;
+  outline: none;
 }
 
 .portfolio-toolbar-sep {
   width: 1px;
-  height: 32px;
+  height: 20px;
   background: var(--line);
   flex-shrink: 0;
 }
@@ -5580,7 +5631,14 @@ td {
   transition: opacity 0.2s ease, transform 0.2s cubic-bezier(0.22, 1, 0.36, 1);
 }
 
-.contact-plan-tooltip.is-visible {
+.contact-plan-tooltip.is-visible,
+.contact-plan-item:hover .contact-plan-tooltip {
+  opacity: 1;
+  pointer-events: auto;
+  transform: translateX(-50%) translateY(0);
+}
+
+.contact-plan-item[data-hovered="true"] .contact-plan-tooltip {
   opacity: 1;
   pointer-events: auto;
   transform: translateX(-50%) translateY(0);
@@ -5641,6 +5699,18 @@ td {
   transform: scale(1.05);
 }
 
+.portfolio-page-card-vertical:hover .project-image-tag {
+  transform: scale(1.32);
+}
+
+.portfolio-page-card[data-hovered="true"] .project-image-tag {
+  transform: scale(1.05);
+}
+
+.portfolio-page-card-vertical[data-hovered="true"] .project-image-tag {
+  transform: scale(1.32);
+}
+
 /* 프로세스 카드 호버 */
 .process-visual-card {
   transition: transform 0.4s cubic-bezier(0.22, 1, 0.36, 1),
@@ -5657,6 +5727,8 @@ td {
   display: flex;
   flex-direction: column;
   gap: 0;
+  min-width: 0;
+  overflow-x: clip;
 }
 
 .portfolio-block-summary {
@@ -5716,16 +5788,23 @@ td {
 }
 
 .portfolio-block-toolbar {
-  padding-bottom: 18px;
+  padding-bottom: 0;
 }
 
 .portfolio-block-toolbar-section {
   display: inline-flex;
   align-items: center;
   color: var(--muted);
-  font-size: 0.82rem;
+  font-size: 0.76rem;
   font-weight: 700;
   letter-spacing: 0.01em;
+}
+
+.portfolio-rich-toolbar .secondary-link {
+  min-height: 30px;
+  padding: 0 10px;
+  font-size: 0.8rem;
+  border-radius: 8px;
 }
 
 .portfolio-block-row-wrap {
@@ -5803,9 +5882,8 @@ td {
   display: flex;
   align-items: center;
   justify-content: center;
-  padding: 0;
+  padding: 18px;
   cursor: pointer;
-  overflow: hidden;
   align-self: flex-start;
   background: #f6f7fb;
 }
@@ -5848,6 +5926,7 @@ td {
   line-height: 1.7;
   font-size: 1.05rem;
   word-break: break-word;
+  white-space: pre-wrap;
 }
 
 .portfolio-block-text:empty::before {
@@ -5856,12 +5935,31 @@ td {
   pointer-events: none;
 }
 
+.portfolio-block-text p {
+  margin: 0 0 0.7em;
+}
+
+.portfolio-block-text p:last-child {
+  margin-bottom: 0;
+}
+
+.portfolio-block-media-frame {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 100%;
+  max-width: 100%;
+  min-height: 0;
+  overflow: hidden;
+}
+
 .portfolio-block-media-preview {
   display: block;
   width: 100%;
+  max-width: 100%;
   height: auto;
-  max-height: 520px;
-  object-fit: contain;
+  max-height: none;
+  margin: 0 auto;
 }
 
 .portfolio-block-media-empty {
@@ -5919,6 +6017,55 @@ td {
   font-weight: 700;
 }
 
+.portfolio-toolbar-inline-select.is-color {
+  gap: 10px;
+}
+
+.portfolio-toolbar-inline-select.is-color input[type="color"] {
+  width: 44px;
+  height: 44px;
+  padding: 0;
+  border: 1px solid rgba(18, 24, 38, 0.12);
+  border-radius: 14px;
+  overflow: hidden;
+  background: transparent;
+  cursor: pointer;
+}
+
+.portfolio-toolbar-inline-select.is-color code {
+  font-size: 0.82rem;
+  color: var(--muted);
+}
+
+.portfolio-block-cell.is-line {
+  display: flex;
+  align-items: stretch;
+  justify-content: center;
+  min-height: 144px;
+  padding: 0;
+}
+
+.portfolio-editor-divider {
+  display: block;
+  width: 100%;
+  border-radius: 999px;
+  cursor: pointer;
+}
+
+.portfolio-editor-divider.is-horizontal {
+  height: 2px;
+  width: 100%;
+  align-self: center;
+  margin: 28px 0;
+}
+
+.portfolio-editor-divider.is-vertical {
+  width: 2px;
+  min-height: 100%;
+  align-self: stretch;
+  margin: 0 auto;
+}
+
 /* ── Rendered page: pbe-row layout ─────────────────────────────── */
 .portfolio-detail-html .pbe-row {
   display: flex;
@@ -5934,6 +6081,24 @@ td {
   width: 100%;
   height: auto;
   display: block;
+  object-fit: contain;
+  object-position: center;
+}
+
+.portfolio-detail-html .pbe-cell:has(> .portfolio-editor-divider.is-vertical) {
+  display: flex;
+  align-self: stretch;
+}
+
+.portfolio-detail-html .portfolio-editor-divider.is-horizontal {
+  height: 2px;
+  margin: 10px 0 18px;
+}
+
+.portfolio-detail-html .portfolio-editor-divider.is-vertical {
+  width: 2px;
+  min-height: 100%;
+  margin: 0 auto;
 }
 
 /* Single-cell media figure */
@@ -5949,9 +6114,9 @@ td {
 }
 
 @media (prefers-reduced-motion: reduce) {
-  [data-reveal],
-  .reference-hero-copy,
-  .reveal-on-load {
+  html:not(.force-motion) [data-reveal],
+  html:not(.force-motion) .reference-hero-copy,
+  html:not(.force-motion) .reveal-on-load {
     opacity: 1;
     transform: none;
     animation: none;
@@ -5994,6 +6159,7 @@ td {
     width: 100% !important;
     max-width: 100% !important;
     margin: 0 0 24px !important;
+    padding-inline: 0 !important;
   }
 
   .portfolio-detail-html .pbe-cell {
@@ -6009,8 +6175,9 @@ td {
 
   .portfolio-detail-html .pbe-cell:not(:has(> figure)):not(:has(> img)):not(:has(> video)):not(:has(> .portfolio-editor-divider)) {
     box-sizing: border-box;
-    padding-inline: 24px;
+    padding-inline: 20px;
   }
+
 
   .portfolio-detail-html .pbe-cell > figure,
   .portfolio-detail-html .pbe-cell > img,
@@ -6034,4 +6201,6 @@ td {
     width: 100% !important;
     max-width: 100% !important;
   }
+}
+
 }

@@ -2,6 +2,7 @@
 import { notFound } from "next/navigation";
 import { SiteHeader } from "@/components/site-header";
 import { readSiteContent } from "@/lib/site-content";
+import { PortfolioDetailHtmlClient } from "./portfolio-detail-html-client";
 
 type PortfolioDetailPageProps = {
   params: Promise<{
@@ -64,17 +65,14 @@ export default async function PortfolioDetailPage({ params }: PortfolioDetailPag
         logoSrc={content.brand.logo}
       />
 
-      <section className="subpage-hero">
+      <section className="subpage-hero reveal-on-load">
         <p className="panel-heading-kicker">{project.category}</p>
         <h1>{project.title}</h1>
         <p>{project.summary}</p>
       </section>
 
-      <section className="portfolio-detail-editor">
-        <div
-          className="portfolio-detail-html"
-          dangerouslySetInnerHTML={{ __html: parsed.bodyHtml }}
-        />
+      <section className="portfolio-detail-editor" data-reveal data-delay="2">
+        <PortfolioDetailHtmlClient html={parsed.bodyHtml} />
       </section>
     </main>
   );

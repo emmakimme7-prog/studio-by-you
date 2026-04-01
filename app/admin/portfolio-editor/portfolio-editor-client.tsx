@@ -177,11 +177,20 @@ export function PortfolioEditorClient({
   }
 
   async function saveDraft() {
+    if (!project) return;
+    if (!project.title.trim()) {
+      setStatus("프로젝트명을 입력해주세요.");
+      return;
+    }
+    if (!project.thumbnailImage) {
+      setStatus("썸네일 이미지를 등록해주세요.");
+      return;
+    }
     try {
       setIsSaving(true);
       setStatus("");
       await persistDraftToServer(draft);
-      setStatus("이 창에서 바로 저장됐습니다.");
+      setStatus("저장됐습니다.");
     } catch (error) {
       setStatus(error instanceof Error ? error.message : "포트폴리오 저장에 실패했습니다.");
     } finally {

@@ -10,3 +10,4 @@ out
 .env.test
 .env*.local
 .turbo
+tsconfig.tsbuildinfo

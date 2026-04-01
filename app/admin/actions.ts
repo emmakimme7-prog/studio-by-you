@@ -147,7 +147,7 @@ export async function updateContentAction(
           ...content.hero,
           title: getField(formData, "heroTitle"),
           description: getField(formData, "heroDescription"),
-          media: getField(formData, "heroMedia") || content.hero.media || "",
+          media: formData.has("heroMedia") ? getField(formData, "heroMedia") : (content.hero.media || ""),
           mediaPositionX: Number(getField(formData, "heroMediaPositionX") || content.hero.mediaPositionX || 50),
           mediaPositionY: Number(getField(formData, "heroMediaPositionY") || content.hero.mediaPositionY || 50),
           mediaScale: Number(getField(formData, "heroMediaScale") || content.hero.mediaScale || 100),

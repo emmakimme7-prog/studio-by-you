@@ -1,6 +1,7 @@
 import { promises as fs } from "fs";
 import path from "path";
 import { unstable_cache, revalidateTag } from "next/cache";
+import { list, put } from "@vercel/blob";
 import {
   getMongoDatabase,
   hasMongoConfig,
@@ -160,6 +161,7 @@ type SiteContentDocument = {
 
 const SITE_CONTENT_TAG = "site-content";
 const TY_PORTFOLIO_PATH = "/portfolio/ty";
+const SITE_CONTENT_BLOB_PATH = "site-content.json";
 
 const contentPath = path.join(process.cwd(), "data", "site-content.json");
 const fallbackProjectThumbs = [
@@ -306,6 +308,46 @@ async function readFileContent() {
 
 async function writeFileContent(content: SiteContent) {
   await fs.writeFile(contentPath, JSON.stringify(content, null, 2) + "\n", "utf-8");
+}
+
+function hasBlobConfig() {
+  return Boolean(process.env.BLOB_READ_WRITE_TOKEN);
+}
+
+async function readBlobContent(): Promise<SiteContent | null> {
+  if (!hasBlobConfig()) {
+    return null;
+  }
+
+  const { blobs } = await list({ limit: 10, prefix: SITE_CONTENT_BLOB_PATH });
+  const target = blobs
+    .filter((blob) => blob.pathname === SITE_CONTENT_BLOB_PATH)
+    .sort((a, b) => b.uploadedAt.getTime() - a.uploadedAt.getTime())[0];
+
+  if (!target) {
+    return null;
+  }
+
+  const response = await fetch(target.url, { cache: "no-store" });
+  if (!response.ok) {
+    throw new Error(`Blob 콘텐츠를 읽지 못했습니다. (${response.status})`);
+  }
+
+  return (await response.json()) as SiteContent;
+}
+
+async function writeBlobContent(content: SiteContent) {
+  if (!hasBlobConfig()) {
+    throw new Error("BLOB_READ_WRITE_TOKEN is not configured.");
+  }
+
+  await put(SITE_CONTENT_BLOB_PATH, JSON.stringify(content, null, 2) + "\n", {
+    access: "public",
+    addRandomSuffix: false,
+    allowOverwrite: true,
+    contentType: "application/json; charset=utf-8",
+    cacheControlMaxAge: 60,
+  });
 }
 
 function normalizeProject(project: Partial<SiteProject> | undefined, index: number): SiteProject {
@@ -526,6 +568,15 @@ async function readSiteContentUncached(): Promise<SiteContent> {
   const fallback = await readFileContent();
 
   if (!hasMongoConfig()) {
+    try {
+      const blobContent = await readBlobContent();
+      if (blobContent) {
+        return normalizeSiteContent(blobContent, fallback);
+      }
+    } catch {
+      // Blob 읽기 실패 시 로컬 파일로 fallback
+    }
+
     return normalizeSiteContent(fallback, fallback);
   }
 
@@ -546,7 +597,7 @@ async function readSiteContentUncached(): Promise<SiteContent> {
 
 const readSiteContentCached = unstable_cache(readSiteContentUncached, [SITE_CONTENT_TAG], {
   tags: [SITE_CONTENT_TAG],
-  revalidate: 3600,
+  revalidate: 60,
 });
 
 export async function readSiteContent(): Promise<SiteContent> {
@@ -607,6 +658,12 @@ export async function writeSiteContent(content: SiteContent) {
       throw new Error(`콘텐츠 저장에 실패했습니다. 잠시 후 다시 시도해주세요. (${err instanceof Error ? err.message : "DB 오류"})`);
     }
 
+    revalidateTag(SITE_CONTENT_TAG, "max");
+    return;
+  }
+
+  if (hasBlobConfig()) {
+    await writeBlobContent(normalized);
     revalidateTag(SITE_CONTENT_TAG, "max");
     return;
   }

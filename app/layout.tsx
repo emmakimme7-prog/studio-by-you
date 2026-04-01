@@ -94,7 +94,7 @@ export default async function RootLayout({
   const content = await readSiteContent();
 
   return (
-    <html lang="ko">
+    <html className="force-motion" lang="ko">
       <body>
         <script
           dangerouslySetInnerHTML={{ __html: JSON.stringify(jsonLd) }}
