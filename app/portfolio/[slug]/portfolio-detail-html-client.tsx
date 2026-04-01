@@ -26,7 +26,7 @@ export function PortfolioDetailHtmlClient({ html }: Props) {
 
     const targets = Array.from(
       root.querySelectorAll<HTMLElement>(
-        "h2, h3, h4, p, ul, ol, li, figure, img, blockquote, .portfolio-block-row, .portfolio-block-cell, .portfolio-block-media"
+        "h2, h3, h4, p, ul, ol, li, figure, blockquote, .portfolio-block-row, .portfolio-block-cell, .portfolio-block-media"
       )
     ).filter((el) => !el.hasAttribute("data-reveal"));
 
