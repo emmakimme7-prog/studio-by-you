@@ -140,13 +140,6 @@ export function ServiceManager({ services, isActive }: Props) {
                 <label className="secondary-link button-reset" htmlFor={inputId}>
                   이미지 업로드
                 </label>
-                <button
-                  className="secondary-link button-reset"
-                  onClick={() => updateImage(item.id, "/yt-demo/dummy-card-1.svg")}
-                  type="button"
-                >
-                  더미 이미지 적용
-                </button>
                 <input
                   accept="image/*"
                   className="file-input"

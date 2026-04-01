@@ -698,9 +698,12 @@ main.subpage-shell.portfolio-detail-page {
 }
 
 .portfolio-detail-page,
-.portfolio-detail-editor,
-.portfolio-detail-html {
+.portfolio-detail-editor {
   overflow-x: hidden;
+}
+
+.portfolio-detail-html {
+  overflow-x: visible;
 }
 
 .portfolio-detail-html {
