@@ -703,28 +703,12 @@ main.subpage-shell.portfolio-detail-page {
   overflow-x: hidden;
 }
 
-.portfolio-detail-editor,
-.portfolio-detail-html {
-  overflow-y: visible;
-  height: auto;
-  max-height: none;
-}
-
-.portfolio-detail-page .portfolio-detail-editor,
-.portfolio-detail-page .portfolio-detail-html {
-  overflow: visible !important;
-  overflow-x: hidden !important;
-  overflow-y: visible !important;
-  height: auto !important;
-  max-height: none !important;
-}
-
 .portfolio-detail-html {
   display: block;
   position: relative;
   z-index: 0;
   isolation: isolate;
-  contain: none;
+  contain: layout paint;
   width: 100%;
   max-width: 100%;
   margin-inline: auto;

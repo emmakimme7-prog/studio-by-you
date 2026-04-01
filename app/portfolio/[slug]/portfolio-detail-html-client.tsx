@@ -15,16 +15,7 @@ export function PortfolioDetailHtmlClient({ html }: Props) {
       return;
     }
 
-    const applyOverflowFix = () => {
-      root.style.removeProperty("overflow");
-      root.style.setProperty("overflow-x", "visible", "important");
-      root.style.setProperty("overflow-y", "visible", "important");
-      root.style.setProperty("height", "auto", "important");
-      root.style.setProperty("max-height", "none", "important");
-    };
-
     root.style.visibility = "hidden";
-    applyOverflowFix();
 
     const getInitialTransform = (kind: string | null) => {
       if (kind === "media") {
@@ -33,13 +24,11 @@ export function PortfolioDetailHtmlClient({ html }: Props) {
       return "translateY(52px)";
     };
 
-    const allCandidates = Array.from(
+    const targets = Array.from(
       root.querySelectorAll<HTMLElement>(
         "h2, h3, h4, p, ul, ol, li, figure, img, blockquote, .portfolio-block-row, .portfolio-block-cell, .portfolio-block-media"
       )
-    );
-
-    const targets = allCandidates.filter((el) => !el.hasAttribute("data-reveal"));
+    ).filter((el) => !el.hasAttribute("data-reveal"));
 
     let delayIndex = 0;
     for (const el of targets) {
@@ -58,31 +47,8 @@ export function PortfolioDetailHtmlClient({ html }: Props) {
       delayIndex += 1;
     }
 
-    for (const el of allCandidates) {
-      if (!el.hasAttribute("data-reveal")) {
-        continue;
-      }
-      if (el.getAttribute("data-visible") === "true") {
-        continue;
-      }
-      const kind = el.getAttribute("data-reveal");
-      el.style.opacity = "0";
-      el.style.transform = getInitialTransform(kind);
-    }
-
+    window.dispatchEvent(new Event("sby:reveal-scan"));
     root.style.visibility = "";
-    requestAnimationFrame(() => {
-      applyOverflowFix();
-      window.dispatchEvent(new Event("sby:reveal-scan"));
-    });
-
-    const timer = window.setTimeout(() => {
-      applyOverflowFix();
-    }, 50);
-
-    return () => {
-      window.clearTimeout(timer);
-    };
   }, [html]);
 
   return (
