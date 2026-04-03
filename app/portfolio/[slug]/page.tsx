@@ -71,7 +71,7 @@ export default async function PortfolioDetailPage({ params }: PortfolioDetailPag
         <p>{project.summary}</p>
       </section>
 
-      <section className="portfolio-detail-editor" data-reveal data-delay="2">
+      <section className="portfolio-detail-editor">
         <PortfolioDetailHtmlClient html={parsed.bodyHtml} />
       </section>
     </main>

@@ -204,14 +204,23 @@ export function ContactForm({ email, headline, plans, privacyPolicy }: ContactFo
                   className="contact-plan-item"
                   key={plan.name}
                   data-plan-name={plan.name}
+                  data-hovered={hoveredPlan === plan.name ? "true" : undefined}
+                  onMouseOver={() => setHoveredPlan(plan.name)}
                   onMouseEnter={() => setHoveredPlan(plan.name)}
                   onMouseLeave={() => setHoveredPlan(null)}
+                  onPointerOver={() => setHoveredPlan(plan.name)}
                   onPointerEnter={() => setHoveredPlan(plan.name)}
                   onPointerLeave={() => setHoveredPlan(null)}
                 >
                   <div
                     className={`contact-plan-tooltip${hoveredPlan === plan.name ? " is-visible" : ""}`}
                     role="tooltip"
+                    style={{
+                      opacity: hoveredPlan === plan.name ? 1 : 0,
+                      pointerEvents: hoveredPlan === plan.name ? "auto" : "none",
+                      transform: hoveredPlan === plan.name ? "translateX(-50%) translateY(0)" : "translateX(-50%) translateY(6px)",
+                      visibility: hoveredPlan === plan.name ? "visible" : "hidden",
+                    }}
                   >
                     <strong>{plan.price}</strong>
                     <span>{plan.description}</span>

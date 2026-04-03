@@ -538,7 +538,7 @@ export function SiteChatWidget({ config, privacyPolicy }: SiteChatWidgetProps) {
     <>
       <div className="site-chat-widget-root">
         {isOpen ? (
-          <div className="site-chat-panel" role="dialog" aria-label="빠른 상담 위젯">
+          <div className="site-chat-panel is-open" role="dialog" aria-label="빠른 상담 위젯">
           <div className="site-chat-panel-head">
             <div className="site-chat-panel-brand">
               <img alt={config.panelTitle} className="site-chat-panel-logo" src="/home-assets/chahup_logo.png" />
@@ -764,7 +764,7 @@ export function SiteChatWidget({ config, privacyPolicy }: SiteChatWidgetProps) {
         <button
           aria-expanded={isOpen}
           aria-label="상담 위젯 열기"
-          className="site-chat-launcher"
+          className={`site-chat-launcher${isOpen ? " is-open" : ""}`}
           onClick={() => setIsOpen((current) => !current)}
           type="button"
         >

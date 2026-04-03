@@ -15,7 +15,7 @@ export function ServiceScrollShowcase({ services }: ServiceScrollShowcaseProps) 
 
   return (
     <section className="services-grid-section">
-      <div className="services-scroll-shell">
+      <div className="services-scroll-shell services-scroll-shell-desktop">
         <div className="services-scroll-preview" data-reveal="scale">
           <div className="services-scroll-preview-frame">
             <div className="services-scroll-preview-image">
@@ -63,6 +63,33 @@ export function ServiceScrollShowcase({ services }: ServiceScrollShowcaseProps) 
             </article>
           ))}
         </div>
+      </div>
+
+      <div className="services-mobile-list">
+        {services.map((service, index) => (
+          <article className="services-mobile-item" key={`${service.title}-mobile`}>
+            <div className="services-mobile-image">
+              <img alt={service.title} src={service.image} />
+            </div>
+            <div className="services-mobile-copy">
+              <div className="services-mobile-head">
+                <span className="services-mobile-index">{String(index + 1).padStart(2, "0")}</span>
+                <strong className="services-solution-price">{service.pricing}</strong>
+              </div>
+              <h2>{service.title}</h2>
+              <p className="pre-line-copy">{service.description}</p>
+              <div className="services-mobile-actions">
+                {service.link ? (
+                  <a className="primary-link services-solution-cta" href={service.link} rel="noopener noreferrer" target="_blank">
+                    솔루션 체험
+                    <span aria-hidden="true">›</span>
+                  </a>
+                ) : null}
+                <ServiceInquiryButton className="secondary-link button-reset services-solution-secondary" intent={service.title} label="이용 문의" />
+              </div>
+            </div>
+          </article>
+        ))}
       </div>
     </section>
   );
