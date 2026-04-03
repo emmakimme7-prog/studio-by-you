@@ -4956,7 +4956,7 @@ td {
   z-index: 80;
   display: grid;
   justify-items: end;
-  gap: 14px;
+  gap: 0;
 }
 
 .site-chat-launcher {
@@ -5014,7 +5014,9 @@ td {
   display: flex;
   flex-direction: column;
   width: min(390px, calc(100vw - 32px));
-  min-height: 430px;
+  height: min(760px, calc(100dvh - 120px));
+  min-height: 520px;
+  margin-bottom: 88px;
   padding: 0;
   border: 1px solid rgba(58, 107, 255, 0.14);
   border-radius: 28px;
@@ -5072,6 +5074,8 @@ td {
 .site-chat-panel-body {
   display: grid;
   gap: 12px;
+  min-height: 0;
+  height: 100%;
   padding: 0 18px 14px;
   background: #ffffff;
 }
@@ -5612,7 +5616,9 @@ td {
 
   .site-chat-panel {
     width: 100%;
+    height: min(720px, calc(100dvh - 108px));
     min-height: 408px;
+    margin-bottom: 84px;
   }
 
   .site-chat-bubble {
