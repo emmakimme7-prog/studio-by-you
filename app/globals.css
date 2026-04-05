@@ -532,9 +532,10 @@ main {
 
 .site-footer__menu {
   position: absolute;
-  top: calc(100% + 8px);
+  bottom: calc(100% + 8px);
   left: 0;
   right: 0;
+  top: auto;
   z-index: 20;
   padding: 8px;
   border: 1px solid rgba(15, 23, 42, 0.1);
@@ -1452,6 +1453,10 @@ main.subpage-shell.portfolio-detail-page {
   background: #ffffff;
   border: 1px solid var(--line);
   box-shadow: var(--shadow);
+}
+
+.faq-content-anim .faq-group + .faq-group {
+  margin-top: 40px;
 }
 
 .faq-group h2 {
@@ -5890,7 +5895,7 @@ td {
 
 .faq-content-anim {
   display: grid;
-  gap: 40px;
+  gap: 0;
   animation: faq-content-in 0.32s cubic-bezier(0.22, 1, 0.36, 1) both;
 }
 
