@@ -10,11 +10,19 @@ type SiteChatWidgetProps = {
 };
 
 export function SiteChatWidget({ config, privacyPolicy: _privacyPolicy }: SiteChatWidgetProps) {
+  const widgetVersion = "20260404-03";
   const pathname = usePathname();
   const [isOpen, setIsOpen] = useState(false);
   const [intent, setIntent] = useState("");
   const widgetUrl = useMemo(() => {
-    const workspace = "studio-by-you";
+    const currentUrl =
+      typeof window === "undefined"
+        ? ""
+        : `${window.location.host}${window.location.pathname}${window.location.search}`.toLowerCase();
+    const workspace =
+      currentUrl.includes("sejulachim") || currentUrl.includes("%EC%84%B8%EC%A4%84%EC%95%84%EC%B9%A8")
+        ? "sejulachim"
+        : "studio-by-you";
     const source =
       typeof window === "undefined"
         ? "www.studiobyyou.kr"
@@ -28,11 +36,12 @@ export function SiteChatWidget({ config, privacyPolicy: _privacyPolicy }: SiteCh
     url.searchParams.set("workspace", workspace);
     url.searchParams.set("embed", "1");
     url.searchParams.set("source", source);
+    url.searchParams.set("v", widgetVersion);
     if (intent) {
       url.searchParams.set("intent", intent);
     }
     return url.toString();
-  }, [intent]);
+  }, [intent, widgetVersion]);
 
   useEffect(() => {
     function handleOpenChat(event: Event) {
