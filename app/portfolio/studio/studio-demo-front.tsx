@@ -270,6 +270,7 @@ function ContactPage({ content }: { content: SiteContent }) {
       <ContactForm
         email={content.contact.email}
         headline={content.contact.headline}
+        operatedServices={content.operatedServices.map((service) => ({ title: service.title }))}
         plans={content.pricing.plans.map((plan) => ({
           name: plan.name,
           price: plan.price,

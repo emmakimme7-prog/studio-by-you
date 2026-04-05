@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useMemo, useState } from "react";
+import { createPortal } from "react-dom";
 import { usePathname } from "next/navigation";
 import type { ChatWidgetSettings } from "@/lib/site-content";
 
@@ -10,10 +11,13 @@ type SiteChatWidgetProps = {
 };
 
 export function SiteChatWidget({ config, privacyPolicy: _privacyPolicy }: SiteChatWidgetProps) {
-  const widgetVersion = "20260404-03";
+  const widgetVersion = "20260405-01";
   const pathname = usePathname();
   const [isOpen, setIsOpen] = useState(false);
   const [intent, setIntent] = useState("");
+  const [footerElement, setFooterElement] = useState<HTMLElement | null>(null);
+  const [anchorToFooter, setAnchorToFooter] = useState(false);
+
   const widgetUrl = useMemo(() => {
     const currentUrl =
       typeof window === "undefined"
@@ -68,12 +72,39 @@ export function SiteChatWidget({ config, privacyPolicy: _privacyPolicy }: SiteCh
     };
   }, []);
 
+  useEffect(() => {
+    if (typeof window === "undefined") return;
+
+    const footer = document.querySelector(".site-footer");
+    if (!(footer instanceof HTMLElement)) return;
+    setFooterElement(footer);
+
+    const updateAnchorState = () => {
+      const viewportHeight = window.visualViewport?.height ?? window.innerHeight;
+      const footerRect = footer.getBoundingClientRect();
+      const widgetOffset = window.innerWidth <= 640 ? 88 : 104;
+      const shouldAnchor = footerRect.top <= viewportHeight - widgetOffset;
+      setAnchorToFooter(shouldAnchor);
+    };
+
+    updateAnchorState();
+    window.addEventListener("scroll", updateAnchorState, { passive: true });
+    window.addEventListener("resize", updateAnchorState);
+    window.visualViewport?.addEventListener("resize", updateAnchorState);
+
+    return () => {
+      window.removeEventListener("scroll", updateAnchorState);
+      window.removeEventListener("resize", updateAnchorState);
+      window.visualViewport?.removeEventListener("resize", updateAnchorState);
+    };
+  }, []);
+
   if (pathname?.startsWith("/studiobyyou") || pathname?.startsWith("/portfolio/studio")) {
     return null;
   }
 
-  return (
-    <div className="site-chat-widget-root">
+  const widget = (
+    <div className={`site-chat-widget-root${anchorToFooter ? " is-anchored-to-footer" : ""}`}>
       {isOpen ? (
         <div className="site-chat-panel is-open" role="dialog" aria-label="빠른 상담 위젯">
           <iframe
@@ -98,4 +129,10 @@ export function SiteChatWidget({ config, privacyPolicy: _privacyPolicy }: SiteCh
       </button>
     </div>
   );
+
+  if (anchorToFooter && footerElement) {
+    return createPortal(widget, footerElement);
+  }
+
+  return widget;
 }

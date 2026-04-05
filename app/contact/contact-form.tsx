@@ -7,6 +7,9 @@ import { compressClientImageFile } from "@/lib/client-image";
 type ContactFormProps = {
   email: string;
   headline: string;
+  operatedServices: Array<{
+    title: string;
+  }>;
   plans: Array<{
     name: string;
     price: string;
@@ -15,10 +18,12 @@ type ContactFormProps = {
   privacyPolicy: string;
 };
 
-const serviceTypes = ["홈페이지", "관리자 페이지", "나만의 기능 개발", "앱서비스", "유료 솔루션"] as const;
+const webServiceTypes = ["홈페이지", "관리자 페이지", "나만의 기능 개발", "앱서비스"] as const;
+const inquiryTypes = ["웹 제작", "솔루션"] as const;
 
-export function ContactForm({ email, headline, plans, privacyPolicy }: ContactFormProps) {
+export function ContactForm({ email, headline, operatedServices, plans, privacyPolicy }: ContactFormProps) {
   const [state, formAction, pending] = useActionState(submitContactInquiryAction, undefined);
+  const [inquiryType, setInquiryType] = useState<(typeof inquiryTypes)[number]>("웹 제작");
   const [activePlan, setActivePlan] = useState(plans[0]?.name ?? "Standard");
   const [hoveredPlan, setHoveredPlan] = useState<string | null>(null);
   const [selectedTypes, setSelectedTypes] = useState<string[]>(["홈페이지"]);
@@ -37,6 +42,7 @@ export function ContactForm({ email, headline, plans, privacyPolicy }: ContactFo
       return;
     }
 
+    setInquiryType("웹 제작");
     setSelectedTypes(["홈페이지"]);
     setMessage("");
     setName("");
@@ -97,11 +103,26 @@ export function ContactForm({ email, headline, plans, privacyPolicy }: ContactFo
     };
   }, [toast]);
 
+  useEffect(() => {
+    if (inquiryType === "솔루션") {
+      const defaultSolution = operatedServices[0]?.title?.trim();
+      setSelectedTypes(defaultSolution ? [defaultSolution] : []);
+      return;
+    }
+
+    setSelectedTypes(["홈페이지"]);
+  }, [inquiryType, operatedServices]);
+
   function toggleType(type: string) {
     setSelectedTypes((current) =>
       current.includes(type) ? current.filter((item) => item !== type) : [...current, type],
     );
   }
+
+  const visibleServiceTypes =
+    inquiryType === "솔루션"
+      ? operatedServices.map((service) => service.title.trim()).filter(Boolean)
+      : [...webServiceTypes];
 
   const isSubmitReady =
     Boolean(activePlan) &&
@@ -169,7 +190,8 @@ export function ContactForm({ email, headline, plans, privacyPolicy }: ContactFo
         </div>
 
         <form action={formAction} className="contact-reference-form reveal-on-load" style={{ animationDelay: "0.25s" }}>
-          <input name="plan" type="hidden" value={activePlan} />
+          <input name="inquiryType" type="hidden" value={inquiryType} />
+          <input name="plan" type="hidden" value={inquiryType === "웹 제작" ? activePlan : ""} />
           {selectedTypes.map((type) => (
             <input key={type} name="serviceTypes" type="hidden" value={type} />
           ))}
@@ -178,75 +200,93 @@ export function ContactForm({ email, headline, plans, privacyPolicy }: ContactFo
           ))}
 
           <div className="contact-form-row">
-            <strong>요금제</strong>
-            <div
-              className="contact-plan-grid"
-              onMouseMove={(event) => {
-                const target = event.target as HTMLElement | null;
-                const item = target?.closest(".contact-plan-item") as HTMLElement | null;
-                const next = item?.dataset.planName || null;
-                if (next !== hoveredPlan) {
-                  setHoveredPlan(next);
-                }
-              }}
-              onPointerLeave={() => setHoveredPlan(null)}
-              onPointerMove={(event) => {
-                const target = event.target as HTMLElement | null;
-                const item = target?.closest(".contact-plan-item") as HTMLElement | null;
-                const next = item?.dataset.planName || null;
-                if (next !== hoveredPlan) {
-                  setHoveredPlan(next);
-                }
-              }}
-            >
-              {plans.map((plan) => (
-                <div
-                  className="contact-plan-item"
-                  key={plan.name}
-                  data-plan-name={plan.name}
-                  data-hovered={hoveredPlan === plan.name ? "true" : undefined}
-                  onMouseOver={() => setHoveredPlan(plan.name)}
-                  onMouseEnter={() => setHoveredPlan(plan.name)}
-                  onMouseLeave={() => setHoveredPlan(null)}
-                  onPointerOver={() => setHoveredPlan(plan.name)}
-                  onPointerEnter={() => setHoveredPlan(plan.name)}
-                  onPointerLeave={() => setHoveredPlan(null)}
+            <strong>문의 유형</strong>
+            <div className="contact-intent-grid">
+              {inquiryTypes.map((type) => (
+                <button
+                  className={`contact-intent-button${inquiryType === type ? " is-active" : ""}`}
+                  key={type}
+                  onClick={() => setInquiryType(type)}
+                  type="button"
                 >
-                  <div
-                    className={`contact-plan-tooltip${hoveredPlan === plan.name ? " is-visible" : ""}`}
-                    role="tooltip"
-                    style={{
-                      opacity: hoveredPlan === plan.name ? 1 : 0,
-                      pointerEvents: hoveredPlan === plan.name ? "auto" : "none",
-                      transform: hoveredPlan === plan.name ? "translateX(-50%) translateY(0)" : "translateX(-50%) translateY(6px)",
-                      visibility: hoveredPlan === plan.name ? "visible" : "hidden",
-                    }}
-                  >
-                    <strong>{plan.price}</strong>
-                    <span>{plan.description}</span>
-                  </div>
-                  <button
-                    className={`contact-plan-button${activePlan === plan.name ? " is-active" : ""}`}
-                    key={plan.name}
-                    onBlur={() => setHoveredPlan(null)}
-                    onFocus={() => setHoveredPlan(plan.name)}
-                    onClick={(event) => {
-                      setActivePlan(plan.name);
-                      event.currentTarget.blur();
-                    }}
-                    type="button"
-                  >
-                    {plan.name}
-                  </button>
-                </div>
+                  {type}
+                </button>
               ))}
             </div>
           </div>
 
+          {inquiryType === "웹 제작" ? (
+            <div className="contact-form-row">
+              <strong>요금제</strong>
+              <div
+                className="contact-plan-grid"
+                onMouseMove={(event) => {
+                  const target = event.target as HTMLElement | null;
+                  const item = target?.closest(".contact-plan-item") as HTMLElement | null;
+                  const next = item?.dataset.planName || null;
+                  if (next !== hoveredPlan) {
+                    setHoveredPlan(next);
+                  }
+                }}
+                onPointerLeave={() => setHoveredPlan(null)}
+                onPointerMove={(event) => {
+                  const target = event.target as HTMLElement | null;
+                  const item = target?.closest(".contact-plan-item") as HTMLElement | null;
+                  const next = item?.dataset.planName || null;
+                  if (next !== hoveredPlan) {
+                    setHoveredPlan(next);
+                  }
+                }}
+              >
+                {plans.map((plan) => (
+                  <div
+                    className="contact-plan-item"
+                    key={plan.name}
+                    data-plan-name={plan.name}
+                    data-hovered={hoveredPlan === plan.name ? "true" : undefined}
+                    onMouseOver={() => setHoveredPlan(plan.name)}
+                    onMouseEnter={() => setHoveredPlan(plan.name)}
+                    onMouseLeave={() => setHoveredPlan(null)}
+                    onPointerOver={() => setHoveredPlan(plan.name)}
+                    onPointerEnter={() => setHoveredPlan(plan.name)}
+                    onPointerLeave={() => setHoveredPlan(null)}
+                  >
+                    <div
+                      className={`contact-plan-tooltip${hoveredPlan === plan.name ? " is-visible" : ""}`}
+                      role="tooltip"
+                      style={{
+                        opacity: hoveredPlan === plan.name ? 1 : 0,
+                        pointerEvents: hoveredPlan === plan.name ? "auto" : "none",
+                        transform: hoveredPlan === plan.name ? "translateX(-50%) translateY(0)" : "translateX(-50%) translateY(6px)",
+                        visibility: hoveredPlan === plan.name ? "visible" : "hidden",
+                      }}
+                    >
+                      <strong>{plan.price}</strong>
+                      <span>{plan.description}</span>
+                    </div>
+                    <button
+                      className={`contact-plan-button${activePlan === plan.name ? " is-active" : ""}`}
+                      key={plan.name}
+                      onBlur={() => setHoveredPlan(null)}
+                      onFocus={() => setHoveredPlan(plan.name)}
+                      onClick={(event) => {
+                        setActivePlan(plan.name);
+                        event.currentTarget.blur();
+                      }}
+                      type="button"
+                    >
+                      {plan.name}
+                    </button>
+                  </div>
+                ))}
+              </div>
+            </div>
+          ) : null}
+
           <div className="contact-form-row">
             <strong>서비스 유형</strong>
             <div className="contact-service-grid">
-              {serviceTypes.map((type) => (
+              {visibleServiceTypes.map((type) => (
                 <label className="contact-check-item" key={type}>
                   <input
                     checked={selectedTypes.includes(type)}

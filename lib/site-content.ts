@@ -63,6 +63,7 @@ export type FaqGroup = {
 export type ContactInquiry = {
   id: string;
   createdAt: string;
+  inquiryType: string;
   plan: string;
   serviceTypes: string[];
   message: string;
@@ -423,6 +424,7 @@ function normalizeInquiry(inquiry: Partial<ContactInquiry> | undefined, index: n
   return {
     id: inquiry?.id || `inquiry-${index + 1}`,
     createdAt: inquiry?.createdAt || new Date(0).toISOString(),
+    inquiryType: inquiry?.inquiryType || "웹 제작",
     plan: inquiry?.plan || "",
     serviceTypes: Array.isArray(inquiry?.serviceTypes) ? inquiry.serviceTypes.filter(Boolean) : [],
     message: inquiry?.message || "",

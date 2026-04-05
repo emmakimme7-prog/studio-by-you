@@ -241,6 +241,10 @@ export function ContactInquiryManager({
               <article className="mini-card">
                 <div className="contact-inquiry-detail-grid">
                   <div>
+                    <span>문의 유형</span>
+                    <strong>{activeInquiry.inquiryType || "웹 제작"}</strong>
+                  </div>
+                  <div>
                     <span>요금제</span>
                     <strong>{activeInquiry.plan}</strong>
                   </div>

@@ -1,5 +1,7 @@
 "use client";
 
+import { useEffect, useRef, useState } from "react";
+
 const relatedSites = [
   { label: "챗허브 | 고객 상담 서비스", href: "https://chathub.studiobyyou.kr" },
   { label: "세줄아침 | 루틴 콘텐츠 서비스", href: "https://studiobyyou.kr/?site=sejulachim-temp" },
@@ -8,6 +10,31 @@ const relatedSites = [
 ] as const;
 
 export function SiteFooter() {
+  const [isOpen, setIsOpen] = useState(false);
+  const dropdownRef = useRef<HTMLDivElement | null>(null);
+
+  useEffect(() => {
+    function handlePointerDown(event: MouseEvent) {
+      if (!dropdownRef.current?.contains(event.target as Node)) {
+        setIsOpen(false);
+      }
+    }
+
+    function handleKeyDown(event: KeyboardEvent) {
+      if (event.key === "Escape") {
+        setIsOpen(false);
+      }
+    }
+
+    window.addEventListener("mousedown", handlePointerDown);
+    window.addEventListener("keydown", handleKeyDown);
+
+    return () => {
+      window.removeEventListener("mousedown", handlePointerDown);
+      window.removeEventListener("keydown", handleKeyDown);
+    };
+  }, []);
+
   return (
     <footer className="site-footer">
       <div className="site-footer__inner">
@@ -34,25 +61,39 @@ export function SiteFooter() {
             </div>
           </div>
 
-          <div className="site-footer__links">
-            <select
-              className="site-footer__select"
-              defaultValue=""
-              id="related-site-select"
-              onChange={event => {
-                const nextHref = event.target.value;
-                if (!nextHref) return;
-                window.open(nextHref, "_blank", "noopener,noreferrer");
-                event.currentTarget.value = "";
-              }}
+          <div className="site-footer__links" ref={dropdownRef}>
+            <button
+              aria-expanded={isOpen}
+              aria-haspopup="listbox"
+              className={`site-footer__select${isOpen ? " is-open" : ""}`}
+              onClick={() => setIsOpen(current => !current)}
+              type="button"
             >
-              <option value="">관련 사이트</option>
-              {relatedSites.map(site => (
-                <option key={site.label} value={site.href}>
-                  {site.label}
-                </option>
-              ))}
-            </select>
+              <span>관련 사이트</span>
+              <span aria-hidden="true" className="site-footer__select-icon">
+                <svg fill="none" height="18" viewBox="0 0 24 24" width="18" xmlns="http://www.w3.org/2000/svg">
+                  <path d="M6 9L12 15L18 9" stroke="currentColor" strokeLinecap="round" strokeLinejoin="round" strokeWidth="2.2" />
+                </svg>
+              </span>
+            </button>
+
+            {isOpen ? (
+              <div className="site-footer__menu" role="listbox">
+                {relatedSites.map(site => (
+                  <button
+                    className="site-footer__menu-item"
+                    key={site.label}
+                    onClick={() => {
+                      window.open(site.href, "_blank", "noopener,noreferrer");
+                      setIsOpen(false);
+                    }}
+                    type="button"
+                  >
+                    {site.label}
+                  </button>
+                ))}
+              </div>
+            ) : null}
           </div>
         </div>
       </div>

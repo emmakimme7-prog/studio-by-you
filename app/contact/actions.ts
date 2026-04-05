@@ -13,6 +13,7 @@ export async function submitContactInquiryAction(
   formData: FormData,
 ) {
   try {
+    const inquiryType = getField(formData, "inquiryType");
     const plan = getField(formData, "plan");
     const message = getField(formData, "message");
     const name = getField(formData, "name");
@@ -27,7 +28,7 @@ export async function submitContactInquiryAction(
       .map((item) => String(item).trim())
       .filter(Boolean);
 
-    if (!plan || !name || !phone) {
+    if (!inquiryType || !plan || !name || !phone) {
       return { error: "필수 정보를 모두 입력해주세요." };
     }
 
@@ -38,6 +39,7 @@ export async function submitContactInquiryAction(
     await pushContactInquiry({
       id: randomUUID(),
       createdAt: new Date().toISOString(),
+      inquiryType,
       plan,
       serviceTypes,
       message,

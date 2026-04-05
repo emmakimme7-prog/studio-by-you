@@ -8,6 +8,7 @@ export async function GET() {
     {
       id: "demo-inquiry-1",
       createdAt: "2026-03-27T01:20:00.000Z",
+      inquiryType: "웹 제작",
       plan: "Standard",
       serviceTypes: ["브랜드 소개 사이트", "포트폴리오"],
       message:
@@ -19,6 +20,7 @@ export async function GET() {
     {
       id: "demo-inquiry-2",
       createdAt: "2026-03-27T06:45:00.000Z",
+      inquiryType: "웹 제작",
       plan: "Deluxe",
       serviceTypes: ["브랜드 홈페이지", "관리자 페이지"],
       message:
@@ -30,6 +32,7 @@ export async function GET() {
     {
       id: "demo-inquiry-3",
       createdAt: "2026-03-28T03:10:00.000Z",
+      inquiryType: "웹 제작",
       plan: "Primeum",
       serviceTypes: ["웹앱 MVP", "관리자 페이지"],
       message:
@@ -41,6 +44,7 @@ export async function GET() {
     {
       id: "demo-inquiry-4",
       createdAt: "2026-03-28T11:30:00.000Z",
+      inquiryType: "웹 제작",
       plan: "Standard",
       serviceTypes: ["랜딩페이지"],
       message:
