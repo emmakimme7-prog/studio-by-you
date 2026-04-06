@@ -163,6 +163,7 @@ type SiteContentDocument = {
 const SITE_CONTENT_TAG = "site-content";
 const TY_PORTFOLIO_PATH = "/portfolio/ty";
 const SITE_CONTENT_BLOB_PATH = "site-content.json";
+const IS_VERCEL_RUNTIME = process.env.VERCEL === "1";
 
 const contentPath = path.join(process.cwd(), "data", "site-content.json");
 const fallbackProjectThumbs = [
@@ -349,6 +350,10 @@ async function writeBlobContent(content: SiteContent) {
     contentType: "application/json; charset=utf-8",
     cacheControlMaxAge: 60,
   });
+}
+
+function shouldAllowLocalFileFallback() {
+  return true;
 }
 
 function normalizeProject(project: Partial<SiteProject> | undefined, index: number): SiteProject {
@@ -568,30 +573,37 @@ function normalizeSiteContent(input: SiteContent | Partial<SiteContent>, fallbac
 
 async function readSiteContentUncached(): Promise<SiteContent> {
   const fallback = await readFileContent();
+  const remoteErrors: string[] = [];
 
-  if (!hasMongoConfig()) {
+  if (hasMongoConfig()) {
+    try {
+      const db = await getMongoDatabase();
+      const collection = db.collection<SiteContentDocument>(SITE_CONTENT_COLLECTION);
+      const document = await collection.findOne({ _id: SITE_CONTENT_DOCUMENT_ID });
+
+      if (document?.content) {
+        return normalizeSiteContent(document.content, fallback);
+      }
+    } catch (error) {
+      remoteErrors.push(`mongo:${error instanceof Error ? error.message : "unknown"}`);
+    }
+  }
+
+  if (hasBlobConfig()) {
     try {
       const blobContent = await readBlobContent();
       if (blobContent) {
         return normalizeSiteContent(blobContent, fallback);
       }
-    } catch {
-      // Blob 읽기 실패 시 로컬 파일로 fallback
+    } catch (error) {
+      remoteErrors.push(`blob:${error instanceof Error ? error.message : "unknown"}`);
     }
-
-    return normalizeSiteContent(fallback, fallback);
   }
 
-  try {
-    const db = await getMongoDatabase();
-    const collection = db.collection<SiteContentDocument>(SITE_CONTENT_COLLECTION);
-    const document = await collection.findOne({ _id: SITE_CONTENT_DOCUMENT_ID });
-
-    if (document?.content) {
-      return normalizeSiteContent(document.content, fallback);
-    }
-  } catch {
-    // MongoDB 연결 실패 시 로컬 파일로 fallback
+  if (!shouldAllowLocalFileFallback()) {
+    throw new Error(
+      `Production site content is unavailable from remote storage${remoteErrors.length ? ` (${remoteErrors.join(", ")})` : ""}.`,
+    );
   }
 
   return normalizeSiteContent(fallback, fallback);
@@ -624,6 +636,23 @@ export async function pushContactInquiry(inquiry: ContactInquiry) {
     }
     revalidateTag(SITE_CONTENT_TAG, "max");
     return;
+  }
+
+  if (hasBlobConfig()) {
+    const content = await readSiteContent();
+    const fallback = await readFileContent();
+    await writeBlobContent(
+      normalizeSiteContent(
+        { ...content, contact: { ...content.contact, inquiries: [inquiry, ...content.contact.inquiries] } },
+        fallback,
+      ),
+    );
+    revalidateTag(SITE_CONTENT_TAG, "max");
+    return;
+  }
+
+  if (!shouldAllowLocalFileFallback()) {
+    throw new Error("Production 문의 저장 경로가 설정되지 않았습니다.");
   }
 
   // 파일 fallback
@@ -668,6 +697,10 @@ export async function writeSiteContent(content: SiteContent) {
     await writeBlobContent(normalized);
     revalidateTag(SITE_CONTENT_TAG, "max");
     return;
+  }
+
+  if (!shouldAllowLocalFileFallback()) {
+    throw new Error("Production 콘텐츠 저장 경로가 설정되지 않았습니다.");
   }
 
   await writeFileContent(normalized);
