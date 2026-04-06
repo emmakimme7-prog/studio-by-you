@@ -44,7 +44,18 @@ function isDarkColor(value: string) {
 export default async function PortfolioDetailPage({ params }: PortfolioDetailPageProps) {
   const { slug } = await params;
   const content = await readSiteContent();
-  const project = content.projects.find((item) => item.slug === slug);
+  const project =
+    content.projects.find((item) => item.slug === slug) ||
+    (slug === "project-1"
+      ? content.projects.find(
+          (item) => item.title.includes("TY") || String(item.siteUrl || "").includes("/portfolio/ty"),
+        )
+      : undefined) ||
+    (slug === "project-3"
+      ? content.projects.find(
+          (item) => item.title.includes("투표") || String(item.siteUrl || "").includes("/portfolio/vote"),
+        )
+      : undefined);
 
   if (!project) {
     notFound();
