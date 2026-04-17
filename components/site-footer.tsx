@@ -39,12 +39,11 @@ export function SiteFooter() {
     <footer className="site-footer">
       <div className="site-footer__inner">
         <div className="site-footer__meta">
-          <p>상호명: OOO</p>
-          <p>대표자: OOO</p>
-          <p>사업자등록번호: OOO-OO-OOOOO</p>
-          <p>통신판매업신고번호: OOO-OO-OOOO</p>
-          <p>주소: OOO</p>
-          <p>이메일: OOO@OOO.COM</p>
+          <p>상호명: 스튜디오 바이유</p>
+          <p>대표자: 김진래</p>
+          <p>사업자등록번호: 863-05-03650</p>
+          <p>주소: 울산광역시 북구 호계9길 64-1, 303호(호계동)</p>
+          <p>문의: hello@studiobyyou.kr</p>
           <div className="site-footer__legal-links">
             <a href="/privacy">개인정보처리방침</a>
             <span aria-hidden="true">|</span>

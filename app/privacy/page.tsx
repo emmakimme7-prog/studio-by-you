@@ -116,8 +116,9 @@ export default async function PrivacyPage() {
         <section>
           <h2>8. 개인정보 보호책임자</h2>
           <ul>
-            <li>담당: Studio by You</li>
-            <li>이메일: studiobyyou.kr@gmail.com</li>
+            <li>상호: 스튜디오 바이유 (대표: 김진래)</li>
+            <li>이메일: hello@studiobyyou.kr</li>
+            <li>주소: 울산광역시 북구 호계9길 64-1, 303호(호계동)</li>
           </ul>
         </section>
 
