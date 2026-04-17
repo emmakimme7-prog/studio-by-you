@@ -2,10 +2,16 @@ import { redirect } from "next/navigation";
 import { LoginForm } from "./form";
 import { getDefaultPasswordNotice, isAuthenticated } from "@/lib/admin-auth";
 
-export default async function AdminLoginPage() {
+export default async function AdminLoginPage({
+  searchParams,
+}: {
+  searchParams?: Promise<{ error?: string }>;
+}) {
   if (await isAuthenticated()) {
     redirect("/admin");
   }
+  const resolvedSearchParams = (await searchParams) || {};
+  const initialError = resolvedSearchParams.error?.trim() || "";
 
   return (
     <main className="auth-shell">
@@ -15,7 +21,7 @@ export default async function AdminLoginPage() {
         <p className="hero-text">
           콘텐츠 수정과 운영 데이터 확인은 관리자 계정으로만 접근할 수 있습니다.
         </p>
-        <LoginForm defaultPasswordNotice={getDefaultPasswordNotice()} />
+        <LoginForm defaultPasswordNotice={getDefaultPasswordNotice()} initialError={initialError} />
       </section>
     </main>
   );

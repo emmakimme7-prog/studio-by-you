@@ -30,7 +30,7 @@ html {
 body {
   margin: 0;
   color: var(--ink);
-  font-family: "Plus Jakarta Sans", "Pretendard", "Apple SD Gothic Neo", sans-serif;
+  font-family: "Pretendard", "SUIT", "Apple SD Gothic Neo", "Segoe UI", sans-serif;
   background: var(--bg);
   min-height: 100vh;
 }

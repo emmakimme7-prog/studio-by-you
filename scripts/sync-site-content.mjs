@@ -13,7 +13,17 @@ function requiredEnv(name) {
   return value;
 }
 
+function requireExplicitWriteApproval() {
+  const approved = process.env.ALLOW_PRODUCTION_DB_WRITE?.trim().toLowerCase();
+  if (approved === "1" || approved === "true" || approved === "yes" || approved === "on") {
+    return;
+  }
+
+  throw new Error("이 스크립트는 DB를 변경합니다. ALLOW_PRODUCTION_DB_WRITE=true 설정 후 다시 실행하세요.");
+}
+
 async function main() {
+  requireExplicitWriteApproval();
   const sourceUri = requiredEnv("SYNC_SOURCE_MONGODB_URI");
   const targetUri = requiredEnv("SYNC_TARGET_MONGODB_URI");
 

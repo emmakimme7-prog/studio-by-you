@@ -45,6 +45,11 @@ export function SiteFooter() {
           <p>통신판매업신고번호: OOO-OO-OOOO</p>
           <p>주소: OOO</p>
           <p>이메일: OOO@OOO.COM</p>
+          <div className="site-footer__legal-links">
+            <a href="/privacy">개인정보처리방침</a>
+            <span aria-hidden="true">|</span>
+            <a href="/terms">이용약관</a>
+          </div>
         </div>
 
         <div className="site-footer__right">

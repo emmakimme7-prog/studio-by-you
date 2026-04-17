@@ -26,6 +26,15 @@ const DOC_ID = "site-content";
 const MAX_WIDTH = 1200;
 const QUALITY = 65; // 기존 82 → 65로 대폭 감소
 
+function requireExplicitWriteApproval() {
+  const approved = process.env.ALLOW_PRODUCTION_DB_WRITE?.trim().toLowerCase();
+  if (approved === "1" || approved === "true" || approved === "yes" || approved === "on") {
+    return;
+  }
+
+  throw new Error("이 스크립트는 MongoDB 문서를 수정합니다. ALLOW_PRODUCTION_DB_WRITE=true 설정 후 다시 실행하세요.");
+}
+
 async function compressDataUrl(dataUrl, label) {
   if (!dataUrl || !dataUrl.startsWith("data:image/")) {
     return null; // URL 경로이거나 비어있으면 건드리지 않음
@@ -53,6 +62,7 @@ async function compressDataUrl(dataUrl, label) {
 }
 
 async function main() {
+  requireExplicitWriteApproval();
   const client = new MongoClient(MONGODB_URI, { serverSelectionTimeoutMS: 10000 });
 
   try {

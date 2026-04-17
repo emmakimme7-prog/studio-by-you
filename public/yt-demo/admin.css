@@ -3,7 +3,7 @@ body {
   margin: 0;
   background: #f6f6f6;
   color: #111;
-  font-family: "Inter", "Pretendard", sans-serif;
+  font-family: "Pretendard", "SUIT", "Apple SD Gothic Neo", "Segoe UI", sans-serif;
 }
 
 button, input, textarea, select { font: inherit; }

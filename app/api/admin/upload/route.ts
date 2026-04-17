@@ -46,6 +46,11 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({ url: blob.url });
   } catch (error) {
     console.error("Admin upload failed", error);
-    return NextResponse.json({ error: "파일 업로드에 실패했습니다." }, { status: 500 });
+    const message = error instanceof Error ? error.message : "";
+    const isStorageError = /(blob|store|storage|blocked|suspend)/i.test(message);
+    return NextResponse.json(
+      { error: isStorageError ? "업로드 저장소를 사용할 수 없습니다." : "파일 업로드에 실패했습니다." },
+      { status: 500 },
+    );
   }
 }

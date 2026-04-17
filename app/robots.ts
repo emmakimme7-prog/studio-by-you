@@ -6,7 +6,14 @@ export default function robots(): MetadataRoute.Robots {
       {
         userAgent: "*",
         allow: "/",
-        disallow: ["/admin", "/admin/"],
+        disallow: [
+          "/admin",
+          "/admin/",
+          "/portfolio/studio",
+          "/portfolio/vote",
+          "/portfolio/yt",
+          "/studiobyyou",
+        ],
       },
     ],
     sitemap: "https://www.studiobyyou.kr/sitemap.xml",

@@ -28,9 +28,8 @@ export async function isAuthenticated() {
     return false;
   }
 
-  const expected = Buffer.from(hashValue(getAdminPassword()));
+  const expected = Buffer.from(hashValue(`password:${getAdminPassword()}`));
   const actual = Buffer.from(sessionValue);
-
   return actual.length === expected.length && timingSafeEqual(actual, expected);
 }
 
@@ -40,7 +39,7 @@ export async function createAdminSession() {
   }
 
   const cookieStore = await cookies();
-  cookieStore.set(ADMIN_COOKIE, hashValue(getAdminPassword()), {
+  cookieStore.set(ADMIN_COOKIE, hashValue(`password:${getAdminPassword()}`), {
     httpOnly: true,
     sameSite: "lax",
     secure: process.env.NODE_ENV === "production",

@@ -89,6 +89,13 @@ export default async function RootLayout({
 
   return (
     <html className="force-motion" lang="ko">
+      <head>
+        <script
+          async
+          crossOrigin="anonymous"
+          src="https://pagead2.googlesyndication.com/pagead/js/adsbygoogle.js?client=ca-pub-1580929910190138"
+        />
+      </head>
       <body>
         <script
           dangerouslySetInnerHTML={{ __html: JSON.stringify(jsonLd) }}

@@ -477,6 +477,26 @@ main {
   line-height: 1.7;
 }
 
+.site-footer__legal-links {
+  display: flex;
+  gap: 8px;
+  align-items: center;
+  margin-top: 10px;
+  font-size: 13px;
+  color: #94a3b8;
+}
+
+.site-footer__legal-links a {
+  color: #64748b;
+  text-decoration: none;
+  transition: color 0.15s;
+}
+
+.site-footer__legal-links a:hover {
+  color: #1e293b;
+  text-decoration: underline;
+}
+
 .site-footer__links {
   position: relative;
   display: grid;
@@ -664,6 +684,48 @@ main {
 
 .faq-page-shell {
   width: min(1000px, calc(100% - 48px));
+}
+
+.legal-page-shell {
+  width: min(860px, calc(100% - 48px));
+}
+
+.legal-body {
+  padding: 0 0 80px;
+  line-height: 1.85;
+  color: var(--muted);
+}
+
+.legal-body section {
+  margin-top: 48px;
+}
+
+.legal-body h2 {
+  font-size: 1.15rem;
+  font-weight: 700;
+  color: var(--foreground);
+  margin-bottom: 12px;
+  letter-spacing: -0.02em;
+}
+
+.legal-body p {
+  margin-top: 8px;
+  font-size: 0.95rem;
+}
+
+.legal-body ul,
+.legal-body ol {
+  margin-top: 10px;
+  padding-left: 22px;
+  font-size: 0.95rem;
+}
+
+.legal-body li {
+  margin-top: 6px;
+}
+
+.legal-body li strong {
+  color: var(--foreground);
 }
 
 .subpage-header {

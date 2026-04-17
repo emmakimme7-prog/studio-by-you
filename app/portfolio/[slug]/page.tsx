@@ -1,4 +1,5 @@
 
+import type { Metadata } from "next";
 import { notFound } from "next/navigation";
 import { SiteHeader } from "@/components/site-header";
 import { readSiteContent } from "@/lib/site-content";
@@ -9,6 +10,35 @@ type PortfolioDetailPageProps = {
     slug: string;
   }>;
 };
+
+const siteUrl = "https://www.studiobyyou.kr";
+
+export async function generateMetadata({ params }: PortfolioDetailPageProps): Promise<Metadata> {
+  const { slug } = await params;
+  const content = await readSiteContent();
+  const project = content.projects.find((item) => item.slug === slug);
+
+  if (!project) {
+    return {};
+  }
+
+  const title = project.title;
+  const description = project.summary;
+  const canonicalUrl = `${siteUrl}/portfolio/${slug}`;
+
+  return {
+    title,
+    description,
+    alternates: {
+      canonical: canonicalUrl,
+    },
+    openGraph: {
+      title,
+      description,
+      url: canonicalUrl,
+    },
+  };
+}
 
 function parsePortfolioDocument(value: string) {
   const backgroundMatch = value.match(/data-page-background="([^"]+)"/);

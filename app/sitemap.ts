@@ -1,9 +1,12 @@
 import type { MetadataRoute } from "next";
+import { readSiteContent } from "@/lib/site-content";
 
 const siteUrl = "https://www.studiobyyou.kr";
 
-export default function sitemap(): MetadataRoute.Sitemap {
-  return [
+export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
+  const content = await readSiteContent();
+
+  const staticRoutes: MetadataRoute.Sitemap = [
     {
       url: siteUrl,
       lastModified: new Date(),
@@ -40,5 +43,28 @@ export default function sitemap(): MetadataRoute.Sitemap {
       changeFrequency: "monthly",
       priority: 0.7,
     },
+    {
+      url: `${siteUrl}/privacy`,
+      lastModified: new Date(),
+      changeFrequency: "yearly",
+      priority: 0.3,
+    },
+    {
+      url: `${siteUrl}/terms`,
+      lastModified: new Date(),
+      changeFrequency: "yearly",
+      priority: 0.3,
+    },
   ];
+
+  const portfolioRoutes: MetadataRoute.Sitemap = content.projects.map(
+    (project) => ({
+      url: `${siteUrl}/portfolio/${project.slug}`,
+      lastModified: new Date(),
+      changeFrequency: "monthly" as const,
+      priority: 0.7,
+    }),
+  );
+
+  return [...staticRoutes, ...portfolioRoutes];
 }

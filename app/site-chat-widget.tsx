@@ -11,7 +11,7 @@ type SiteChatWidgetProps = {
 };
 
 export function SiteChatWidget({ config, privacyPolicy: _privacyPolicy }: SiteChatWidgetProps) {
-  const widgetVersion = "20260405-01";
+  const widgetVersion = "20260406-01";
   const pathname = usePathname();
   const [isOpen, setIsOpen] = useState(false);
   const [intent, setIntent] = useState("");
@@ -23,19 +23,18 @@ export function SiteChatWidget({ config, privacyPolicy: _privacyPolicy }: SiteCh
       typeof window === "undefined"
         ? ""
         : `${window.location.host}${window.location.pathname}${window.location.search}`.toLowerCase();
+    const workspaceAliases: Array<{ slug: string; match: string[] }> = [
+      { slug: "sejulachim", match: ["sejulachim", "세줄아침", "sejulachim-temp"] },
+      { slug: "studio-by-you", match: ["studio-by-you", "studiobyyou"] }
+    ];
     const workspace =
-      currentUrl.includes("sejulachim") || currentUrl.includes("%EC%84%B8%EC%A4%84%EC%95%84%EC%B9%A8")
-        ? "sejulachim"
-        : "studio-by-you";
+      workspaceAliases.find((entry) => entry.match.some((keyword) => currentUrl.includes(keyword)))?.slug ??
+      "studio-by-you";
     const source =
       typeof window === "undefined"
         ? "www.studiobyyou.kr"
         : `${window.location.host}${window.location.pathname}${window.location.search}`;
-    const widgetOrigin =
-      typeof window !== "undefined" &&
-      (window.location.hostname === "localhost" || window.location.hostname === "127.0.0.1")
-        ? "http://localhost:3102"
-        : "https://chathub.studiobyyou.kr";
+    const widgetOrigin = process.env.NEXT_PUBLIC_CHATHUB_ORIGIN || "https://chathub.studiobyyou.kr";
     const url = new URL("/customer", widgetOrigin);
     url.searchParams.set("workspace", workspace);
     url.searchParams.set("embed", "1");
