@@ -60,6 +60,13 @@ export const metadata: Metadata = {
   alternates: {
     canonical: siteUrl,
   },
+  verification: {
+    other: {
+      // Meta(Facebook) 비즈니스 인증 — 도메인 인증용
+      // shotping(서브도메인) 의 Meta App Review 의 비즈니스 인증 단계에서 요구
+      "facebook-domain-verification": "0akrt1b7q3bqp788a7xd2qlsp5k6ot",
+    },
+  },
 };
 
 const jsonLd = {
